@@ -1,4 +1,3 @@
-
 ## log2es
 
 log2es is a [logback](http://logback.qos.ch) appender for [elasticsearch](http://elasticsearch.org).
@@ -21,8 +20,8 @@ You've to add the maven dependency first:
 Now you can add the appender to your logback configuration:
 
 ```xml
-    <appender name="log2es" class="de.agilecoders.logback.elasticsearch.ElasticSearchLogbackAppender">
-    </appender>
+<appender name="log2es" class="de.agilecoders.logback.elasticsearch.ElasticSearchLogbackAppender">
+</appender>
 ```
 
 ### Configuration

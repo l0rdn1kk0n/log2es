@@ -117,7 +117,7 @@ class Worker() extends Actor with DefaultSupervisor with ActorLogging with Defau
         converter = Creator.newConverter(context)
         indexSender = Creator.newIndexSender(context)
 
-        Log2esContext.watchMe(self)
+        context.system.eventStream.publish(WatchMe(self))
     }
 
     /**

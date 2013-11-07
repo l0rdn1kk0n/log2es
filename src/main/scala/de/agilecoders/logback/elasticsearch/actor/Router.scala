@@ -4,6 +4,7 @@ import akka.actor._
 import akka.routing.Broadcast
 import ch.qos.logback.classic.spi.ILoggingEvent
 import de.agilecoders.logback.elasticsearch._
+import de.agilecoders.logback.elasticsearch.actor.Reaper.WatchMe
 
 /**
  * router props.
@@ -91,7 +92,7 @@ class Router(appender: ElasticSearchLogbackAppender) extends Actor with ActorLog
 
         context.become(active)
 
-        Log2esContext.watchMe(self)
+        context.system.eventStream.publish(WatchMe(self))
     }
 
     override def postStop() = {

@@ -39,17 +39,6 @@ class ActorBasedElasticSearchLogbackAppender extends UnsynchronizedAppenderBase[
         event.getLevel.toInt <= configuration.discardableLevel
     }
 
-    /**
-     * starts up log2es context
-     */
-    override def start() {
-        if (!isStarted) {
-            super.start()
-
-            Log2esContext.start(newReaper(Log2esContext.system))
-        }
-    }
-
     override def stop() {
         if (isStarted) {
             super.stop()
@@ -57,10 +46,5 @@ class ActorBasedElasticSearchLogbackAppender extends UnsynchronizedAppenderBase[
             Log2esContext.shutdownAndAwaitTermination()
         }
     }
-
-    /**
-     * creates a new reaper actor that watches for living/dead actors
-     */
-    def newReaper(context: ActorSystem) = context.actorOf(Props(classOf[ShutdownReaper]), "reaper")
 
 }

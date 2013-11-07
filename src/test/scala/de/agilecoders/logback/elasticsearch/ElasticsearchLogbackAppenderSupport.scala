@@ -1,12 +1,13 @@
 package de.agilecoders.logback.elasticsearch
 
-import akka.actor.{Props, ActorSystem}
+import akka.actor.ActorDSL._
+import akka.actor.{ActorDSL, ActorRef, ActorSystem}
 import akka.testkit.{TestKit, ImplicitSender}
 import ch.qos.logback.classic.spi.{LoggingEvent, ILoggingEvent}
 import ch.qos.logback.classic.{Level, LoggerContext}
 import com.google.common.base.Stopwatch
 import com.twitter.ostrich.stats.{Distribution, Stats}
-import de.agilecoders.logback.elasticsearch.actor.TestReaper
+import de.agilecoders.logback.elasticsearch.actor.Reaper.AllSoulsReaped
 import de.agilecoders.logback.elasticsearch.appender.ActorBasedElasticSearchLogbackAppender
 import java.util.concurrent.TimeUnit
 import org.joda.time.DateTime
@@ -20,9 +21,7 @@ import scala.concurrent.duration._
  */
 protected class ElasticsearchLogbackAppenderSupport(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with
 WordSpecLike with Matchers with BeforeAndAfterAll {
-    lazy val appender = new ActorBasedElasticSearchLogbackAppender {
-        override def newReaper(context: ActorSystem) = context.actorOf(Props(classOf[TestReaper], testActor), "reaper")
-    }
+    lazy val appender = new ActorBasedElasticSearchLogbackAppender()
 
     var timeout: FiniteDuration = 15.seconds
     val timer: Stopwatch = new Stopwatch()
@@ -54,6 +53,13 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         timer.start()
         appender.setContext(new LoggerContext)
         appender.start()
+
+        val allSoulsReapedWatcher: ActorRef = ActorDSL.actor(new Act {
+            become {
+                case message: AllSoulsReaped => testActor ! "Dead"
+            }
+        })
+        _system.eventStream.subscribe(allSoulsReapedWatcher, classOf[AllSoulsReaped])
     }
 
     protected final def waitForEmptyQueue() {

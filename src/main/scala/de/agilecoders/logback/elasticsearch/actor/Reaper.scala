@@ -3,6 +3,7 @@ package de.agilecoders.logback.elasticsearch.actor
 import akka.actor.{ActorLogging, Actor, ActorRef, Terminated}
 import scala.collection.mutable.ArrayBuffer
 import de.agilecoders.logback.elasticsearch.Log2esContext
+import de.agilecoders.logback.elasticsearch.actor.Reaper.AllSoulsReaped
 
 object Reaper {
     /**
@@ -11,6 +12,11 @@ object Reaper {
      * @param ref the actor to watch
      */
     case class WatchMe(ref: ActorRef)
+
+    /**
+     * Used by reaper to publish "AllSoulsReaped" event.
+     */
+    case class AllSoulsReaped()
 }
 
 /**
@@ -47,6 +53,12 @@ abstract class Reaper extends Actor with ActorLogging {
                 allSoulsReaped()
             }
     }
+
+    override def preStart() = {
+        super.preStart()
+
+        context.system.eventStream.subscribe(self, classOf[WatchMe])
+    }
 }
 
 case class ShutdownReaper() extends Reaper {
@@ -54,6 +66,8 @@ case class ShutdownReaper() extends Reaper {
      * shutdown log2es context
      */
     def allSoulsReaped(): Unit = {
+        context.system.eventStream.publish(AllSoulsReaped())
+
         Log2esContext.shutdown()
     }
 }

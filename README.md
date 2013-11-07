@@ -22,7 +22,7 @@ You've to add the maven dependency first:
 Now you can add the appender to your logback configuration:
 
 ```xml
-<appender name="log2es" class="de.agilecoders.logback.elasticsearch.ElasticSearchLogbackAppender">
+<appender name="log2es" class="de.agilecoders.logback.elasticsearch.ActorBasedElasticSearchLogbackAppender">
 </appender>
 ```
 

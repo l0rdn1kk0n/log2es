@@ -1,25 +1,21 @@
-package de.agilecoders.logback.elasticsearch
+package de.agilecoders.logback.elasticsearch.mapper
 
 import ch.qos.logback.classic.spi.{StackTraceElementProxy, IThrowableProxy, ILoggingEvent}
-import scala.collection.mutable
-import collection.JavaConversions._
-import java.lang.Object
-import scala.Predef.String
-import scala.collection.Map
+import de.agilecoders.logback.elasticsearch.conf.Configuration
 import org.joda.time.DateTime
-import org.joda.time.format.{DateTimeFormatter, ISODateTimeFormat}
-import de.agilecoders.logback.elasticsearch.actor.Configuration
-
+import org.joda.time.format.{ISODateTimeFormat, DateTimeFormatter}
+import scala.collection.convert.WrapAsJava._
+import scala.collection.{mutable, Map}
 
 /**
  * Default implementation of `ILoggingEventToMapTransformer`
  *
  * @author miha
  */
-case class DefaultLoggingEventToMapConverter(var configuration: Configuration) extends ILoggingEventToMapTransformer {
+case class LoggingEventToMapMapper(var configuration: Configuration) extends LoggingEventMapper[Map[String, Object]] {
     private[this] val formatter: DateTimeFormatter = ISODateTimeFormat.dateTime()
 
-    override def toMap(event: ILoggingEvent) = {
+    override def map(event: ILoggingEvent) = {
         val json: mutable.Map[String, Any] = mutable.Map[String, Any]()
 
         addBaseValues(json, event)
@@ -41,7 +37,7 @@ case class DefaultLoggingEventToMapConverter(var configuration: Configuration) e
             json.put(Keys.stacktrace, transformThrowable(event.getThrowableProxy))
         }
 
-        mapAsScalaMap(json.asInstanceOf[Map[String, Object]])
+        json.asInstanceOf[Map[String, Object]]
     }
 
     /**
@@ -141,47 +137,4 @@ case class DefaultLoggingEventToMapConverter(var configuration: Configuration) e
     def transformDate(timestamp: Long): String = new DateTime(timestamp).toString(formatter)
 
     def transformArguments(argumentArray: Array[Object]): Array[Object] = argumentArray
-}
-
-/**
- * defines all available keys of json structure.
- */
-object Keys {
-    val line = "line"
-    val mdc = "mdc"
-    val arguments = "arguments"
-    val cause = "cause"
-    val caller = "caller"
-    val file = "file"
-    val clazz = "class"
-    val method = "method"
-    val nativeValue = "native"
-    val stacktrace = "stacktrace"
-    val timestamp = "timestamp"
-    val marker = "marker"
-    val message = "message"
-    val level = "level"
-    val logger = "logger"
-    val thread = "thread"
-    val date = "date"
-}
-
-/**
- * Defines the interface of all `ILoggingEvent` to `Map`
- * transformer. This transformer is used to create a json representation
- * of `ILoggingEvent` that matches the elasticsearch mapping.
- *
- * @author miha
- */
-trait ILoggingEventToMapTransformer {
-
-    /**
-     * transforms an `ILoggingEvent` to a `Map` according to the
-     * elasticsearch mapping.
-     *
-     * @param event the logging event to transform
-     * @return logging event as map
-     */
-    def toMap(event: ILoggingEvent): Map[String, Any]
-
 }

@@ -9,7 +9,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent
  */
 package object elasticsearch {
 
-    implicit val executor = LogbackContext.system.dispatcher
+    implicit val executor = Log2esContext.system.dispatcher
 
     /**
      * a base feedback message
@@ -36,6 +36,24 @@ package object elasticsearch {
      */
     case class FlushQueue() extends Action
 
+    /**
+     * action which is send to actors which asked for
+     */
+    case class Alive() extends Action
+
+    /**
+     * action which is send to actors which asked for
+     */
+    case class ImDead() extends Action
+
+    /**
+     * response to Alive
+     */
+    case class ImAlive() extends Action
+
     lazy val flushQueue = FlushQueue
+    lazy val alive = Alive
+    lazy val imAlive = ImAlive
+    lazy val imDead = ImDead
 
 }

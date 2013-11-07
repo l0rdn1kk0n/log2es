@@ -163,6 +163,11 @@
             <artifactId>scalastic_2.10</artifactId>
             <version>0.90.2</version>
         </dependency>
+        <dependency>
+            <groupId>org.elasticsearch</groupId>
+            <artifactId>elasticsearch</artifactId>
+            <version>0.90.5</version>
+        </dependency>
         <!--<dependency>
             <groupId>io.searchbox</groupId>
             <artifactId>jest</artifactId>

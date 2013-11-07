@@ -1,11 +1,17 @@
 package de.agilecoders.logback.elasticsearch
 
-import akka.actor.ActorSystem
+import akka.actor.{Props, ActorSystem}
 import akka.testkit.{TestKit, ImplicitSender}
 import ch.qos.logback.classic.spi.{LoggingEvent, ILoggingEvent}
 import ch.qos.logback.classic.{Level, LoggerContext}
+import com.google.common.base.Stopwatch
+import com.twitter.ostrich.stats.{Distribution, Stats}
+import de.agilecoders.logback.elasticsearch.actor.TestReaper
+import de.agilecoders.logback.elasticsearch.appender.ActorBasedElasticSearchLogbackAppender
+import java.util.concurrent.TimeUnit
 import org.joda.time.DateTime
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import scala.concurrent.duration._
 
 /**
  * helper class for all appender tests
@@ -14,15 +20,47 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
  */
 protected class ElasticsearchLogbackAppenderSupport(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with
 WordSpecLike with Matchers with BeforeAndAfterAll {
-    lazy val appender = new ElasticSearchLogbackAppender
-
-    override protected def afterAll(): Unit = {
-        appender.stop()
+    lazy val appender = new ActorBasedElasticSearchLogbackAppender {
+        override def newReaper(context: ActorSystem) = context.actorOf(Props(classOf[TestReaper], testActor), "reaper")
     }
 
+    var timeout: FiniteDuration = 15.seconds
+    val timer: Stopwatch = new Stopwatch()
+
+    override protected def afterAll(): Unit = {
+        try {
+            appender.stop()
+            expectMsg(timeout, "Dead")
+        } finally {
+            timer.stop()
+
+            Console.out.append("\n\n-----------\nMetrics:\n")
+            Stats.get().metrics foreach (logMetrics _)
+            Console.out.append("\n\nCounters:\n")
+            Stats.get().counters foreach (logCounters _)
+            Console.out.append("\n\nGauges:\n")
+            Stats.get().gauges foreach (logGauges _)
+            Console.out.append("\n\nDuration: " + timer.elapsed(TimeUnit.MILLISECONDS) + "ms")
+        }
+    }
+
+    private def logMetrics(t: (String, Distribution)): Unit = Console.out.append(s"${t._1}: ${t._2.toJson()}\n")
+
+    private def logCounters(t: (String, Long)): Unit = Console.out.append(s"${t._1}: ${t._2}\n")
+
+    private def logGauges(t: (String, Double)): Unit = Console.out.append(s"${t._1}: ${t._2}\n")
+
     override protected def beforeAll(): Unit = {
+        timer.start()
         appender.setContext(new LoggerContext)
         appender.start()
+    }
+
+    protected final def waitForEmptyQueue() {
+        Thread.sleep(5000)
+        appender.router ! alive
+
+        expectMsg(timeout, imAlive)
     }
 
     protected def newEvent(): ILoggingEvent = newEvent(scala.math.random)

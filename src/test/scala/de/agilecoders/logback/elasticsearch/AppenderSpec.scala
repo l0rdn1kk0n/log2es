@@ -2,7 +2,6 @@ package de.agilecoders.logback.elasticsearch
 
 import akka.actor.ActorSystem
 import de.agilecoders.logback.elasticsearch.actor.LogbackActorSystem
-import com.twitter.ostrich.stats.Stats
 
 class AppenderSpec(_system: ActorSystem) extends ElasticsearchLogbackAppenderSupport(_system) {
     def this() = this(LogbackActorSystem.instance)
@@ -10,13 +9,15 @@ class AppenderSpec(_system: ActorSystem) extends ElasticsearchLogbackAppenderSup
     "An Appender" must {
 
         "handle a lot of incoming events" in {
-            //(1 to 1000000) foreach (i => appender.append(newEvent()))
-            //Thread.sleep(20000)
+            (1 to 100000).par foreach (i => appender.append(newEvent()))
+
+            waitForEmptyQueue()
         }
 
         "handle a small amount of messages and flush everything during shutdown" in {
-            (1 to 9999).par foreach (i => appender.append(newEvent()))
-            Thread.sleep(5000)
+            (1 to 1).par foreach (i => appender.append(newEvent()))
+
+            waitForEmptyQueue()
         }
 
     }

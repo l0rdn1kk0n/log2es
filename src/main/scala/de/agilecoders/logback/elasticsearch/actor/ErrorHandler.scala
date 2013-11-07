@@ -2,14 +2,16 @@ package de.agilecoders.logback.elasticsearch.actor
 
 import akka.actor._
 import ch.qos.logback.classic.spi.ILoggingEvent
-import de.agilecoders.logback.elasticsearch.{LogbackContext, IElasticSearchLogbackAppender, CantSendEvent}
+import de.agilecoders.logback.elasticsearch._
+import akka.actor.DeadLetter
+import akka.actor.UnhandledMessage
 import de.agilecoders.logback.elasticsearch.CantSendEvent
 import akka.actor.DeadLetter
 
 
 object ErrorHandler {
 
-    def props(appender: IElasticSearchLogbackAppender): Props = Props(classOf[ErrorHandler], appender)
+    def props(appender: ElasticSearchLogbackAppender): Props = Props(classOf[ErrorHandler], appender)
 }
 
 /**
@@ -17,7 +19,8 @@ object ErrorHandler {
  *
  * @author miha
  */
-class ErrorHandler(appender: IElasticSearchLogbackAppender) extends Actor with ActorLogging {
+class ErrorHandler(appender: ElasticSearchLogbackAppender) extends Actor with ActorLogging {
+    private[this] val ignorable = Seq(classOf[FlushQueue])
     private[this] var errors = 0
     private[this] var deadLetters = 0
     private[this] var cantSend = 0
@@ -41,7 +44,7 @@ class ErrorHandler(appender: IElasticSearchLogbackAppender) extends Actor with A
 
     private[this] def handle(deadLetter: DeadLetter) = deadLetter.message match {
         case e: ILoggingEvent => if(retryOrDiscard(e)) deadLetters -= 1
-        case _ => appender.addError(deadLetter.message.toString)
+        case _ => log.debug(s"ignored deadletter message: ${deadLetter.message} sent from ${deadLetter.sender} to ${deadLetter.recipient}")
     }
 
     private[this] def retryOrDiscard(message: ILoggingEvent):Boolean = {
@@ -71,7 +74,15 @@ class ErrorHandler(appender: IElasticSearchLogbackAppender) extends Actor with A
             deadLetters += 1
             handle(d)
         }
+        case u:UnhandledMessage => {
+            if (!ignorable.contains(u.message.getClass)) {
+                errors += 1
 
+                log.warning(s"unhandled message: ${u.message} sent from ${u.sender.path} to ${u.recipient.path}")
+            }
+        }
+
+        case message: FlushQueue => log.debug("ignore flush messages because there's no queue to flush")
         case p: PoisonPill => log.debug("received poison pill")
         case x => errors += 1; log.debug(s"got an error for: $x")
     }

@@ -2,12 +2,14 @@ package de.agilecoders.logback.elasticsearch.actor
 
 import akka.actor._
 import akka.pattern.ask
-import akka.routing.{DefaultResizer, RoundRobinRouter, Broadcast}
+import akka.routing.{RoundRobinRouter, Broadcast}
 import ch.qos.logback.classic.spi.ILoggingEvent
 import de.agilecoders.logback.elasticsearch._
+import de.agilecoders.logback.elasticsearch.conf.Configuration
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Random}
+import de.agilecoders.logback.elasticsearch.actor.Reaper.WatchMe
 
 object Worker {
 
@@ -16,8 +18,7 @@ object Worker {
      *
      * @return new `Props` instance
      */
-    def props() = Props(classOf[Worker])
-      .withRouter(RoundRobinRouter(resizer = Some(DefaultResizer(lowerBound = 2, upperBound = 10))))
+    def props() = Props(classOf[Worker]).withRouter(RoundRobinRouter(nrOfInstances = 10))
 
     /**
      * create and start a new scheduler that sends `FlushQueue` messages to given `Worker` actor.
@@ -40,17 +41,14 @@ object Worker {
  *
  * @author miha
  */
-class Worker() extends Actor with DefaultSupervisor with ActorLogging {
-    private[this] val configuration = LogbackContext.configuration
+class Worker() extends Actor with DefaultSupervisor with ActorLogging with DefaultMessageHandler {
+    private[this] val configuration = Log2esContext.configuration
     private[this] var scheduler: Cancellable = Worker.newScheduler(context, configuration)
     private[this] var converter: ActorRef = null
     private[this] var indexSender: ActorRef = null
     private[this] implicit val timeout = configuration.converterTimeout
 
-    /**
-         * handle incoming messages.
-         */
-    def receive = {
+    override protected def onMessage = {
         case event: ILoggingEvent => {
             log.debug(s"received log event: ${event.hashCode()}")
 
@@ -63,6 +61,7 @@ class Worker() extends Actor with DefaultSupervisor with ActorLogging {
 
                     indexSender ! result.asInstanceOf[AnyRef]
                 }
+
                 case Failure(failure) => {
                     log.debug(s"received conversion failure for event [${event.hashCode()}]; respond to sender.")
 
@@ -71,26 +70,19 @@ class Worker() extends Actor with DefaultSupervisor with ActorLogging {
             }
 
         }
+    }
 
-        case Broadcast(p: PoisonPill) => {
-            log.debug("received poison pill via broadcast")
+    override protected def onFlushQueue(message: FlushQueue) = {
+        log.debug(s"received flush queue action from $sender")
 
-            flush()
-            forward(p)
-        }
+        flush()
+    }
 
-        case p: PoisonPill => {
-            log.debug("received poison pill")
+    override protected def onPoisonPill(message: PoisonPill) = {
+        log.debug(s"received poison pill from $sender, flush and forward")
 
-            flush()
-            forward(p)
-        }
-
-        case event: FlushQueue => {
-            log.debug("received flush queue action")
-
-            flush()
-        }
+        flush()
+        forward(message)
     }
 
     /**
@@ -105,7 +97,7 @@ class Worker() extends Actor with DefaultSupervisor with ActorLogging {
          * flush sender to queue to elasticsearch
          */
     private[this] def flush() {
-        indexSender ! flushQueue
+        indexSender ! Broadcast(flushQueue)
     }
 
     /**
@@ -124,6 +116,8 @@ class Worker() extends Actor with DefaultSupervisor with ActorLogging {
 
         converter = Creator.newConverter(context)
         indexSender = Creator.newIndexSender(context)
+
+        Log2esContext.watchMe(self)
     }
 
     /**

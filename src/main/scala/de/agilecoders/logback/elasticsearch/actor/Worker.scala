@@ -1,15 +1,14 @@
 package de.agilecoders.logback.elasticsearch.actor
 
 import akka.actor._
-import akka.pattern.ask
 import akka.routing.{RoundRobinRouter, Broadcast}
 import ch.qos.logback.classic.spi.ILoggingEvent
 import de.agilecoders.logback.elasticsearch._
+import de.agilecoders.logback.elasticsearch.actor.Reaper.WatchMe
 import de.agilecoders.logback.elasticsearch.conf.Configuration
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Random}
-import de.agilecoders.logback.elasticsearch.actor.Reaper.WatchMe
+import scala.util.Random
 
 object Worker {
 
@@ -42,34 +41,15 @@ object Worker {
  * @author miha
  */
 class Worker() extends Actor with DefaultSupervisor with ActorLogging with DefaultMessageHandler {
-    private[this] val configuration = Log2esContext.configuration
-    private[this] var scheduler: Cancellable = Worker.newScheduler(context, configuration)
-    private[this] var converter: ActorRef = null
-    private[this] var indexSender: ActorRef = null
-    private[this] implicit val timeout = configuration.converterTimeout
+    private[this] lazy val scheduler: Cancellable = Worker.newScheduler(context, configuration)
+    private[this] lazy val configuration = Log2esContext.configuration
+    private[this] lazy val converter: ActorRef = Creator.newConverter(context)
+    private[this] lazy val indexSender: ActorRef = Creator.newIndexSender(context)
 
     override protected def onMessage = {
-        case event: ILoggingEvent => {
-            log.debug(s"received log event: ${event.hashCode()}")
+        case Converted(message: AnyRef) => indexSender ! message
 
-            val _sender = sender
-            val future = converter ? event
-
-            future onComplete {
-                case Success(result) => {
-                    log.debug(s"redirect event [${event.hashCode()}] to index sender")
-
-                    indexSender ! result.asInstanceOf[AnyRef]
-                }
-
-                case Failure(failure) => {
-                    log.debug(s"received conversion failure for event [${event.hashCode()}]; respond to sender.")
-
-                    _sender ! CantSendEvent(event)
-                }
-            }
-
-        }
+        case event: ILoggingEvent => converter ! event
     }
 
     override protected def onFlushQueue(message: FlushQueue) = {
@@ -108,14 +88,6 @@ class Worker() extends Actor with DefaultSupervisor with ActorLogging with Defau
         super.preStart()
 
         log.info(s"startup worker actor: ${hashCode()}")
-
-        scheduler = scheduler.isCancelled match {
-            case true => Worker.newScheduler(context, configuration)
-            case _ => scheduler
-        }
-
-        converter = Creator.newConverter(context)
-        indexSender = Creator.newIndexSender(context)
 
         context.system.eventStream.publish(WatchMe(self))
     }

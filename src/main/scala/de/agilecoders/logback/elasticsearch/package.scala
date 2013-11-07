@@ -32,6 +32,11 @@ package object elasticsearch {
     sealed trait Action
 
     /**
+     * Message that holds converted content from converter
+     */
+    case class Converted(content: AnyRef) extends Action
+
+    /**
      * action which will be sent to flush all queues on all workers
      */
     case class FlushQueue() extends Action

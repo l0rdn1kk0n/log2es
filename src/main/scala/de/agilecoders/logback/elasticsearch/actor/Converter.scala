@@ -4,7 +4,7 @@ import akka.actor.{PoisonPill, Props, Actor}
 import akka.routing.RoundRobinRouter
 import ch.qos.logback.classic.spi.ILoggingEvent
 import com.twitter.ostrich.stats.Stats
-import de.agilecoders.logback.elasticsearch.{FlushQueue, Log2esContext}
+import de.agilecoders.logback.elasticsearch.{Converted, FlushQueue, Log2esContext}
 
 /**
  * Converts an `ILoggingEvent` into a map
@@ -26,7 +26,8 @@ class Converter() extends Actor with DefaultSupervisor with DefaultMessageHandle
         Stats.incr("log2es.converter.converted")
 
         Stats.time("log2es.converter.convertTime") {
-            transformer.map(event)
+            // TODO: add error handling
+            Converted(transformer.map(event))
         }
     }
 

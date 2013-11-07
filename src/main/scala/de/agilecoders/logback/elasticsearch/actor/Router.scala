@@ -30,7 +30,7 @@ class Router(appender: ElasticSearchLogbackAppender) extends Actor with ActorLog
     /**
      * receive handler when actor is dead/inactive
      */
-    def inactive: Actor.Receive = {
+    private[this] def inactive: Actor.Receive = {
         case p: PoisonPill => ignore()
         case PoisonPill => ignore()
         case Broadcast(PoisonPill) => ignore()
@@ -48,7 +48,7 @@ class Router(appender: ElasticSearchLogbackAppender) extends Actor with ActorLog
     /**
      * receive handler when actor is active
      */
-    def active: Actor.Receive = {
+    private[this] def active: Actor.Receive = {
         case e: ILoggingEvent => worker ! e
         case e: CantSendEvent => worker ! e.message
 

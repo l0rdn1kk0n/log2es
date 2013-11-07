@@ -24,7 +24,12 @@ object Elasticsearch extends StoreInitializer[BufferedStore[XContentBuilder, Ind
         indexer.start
 
         indexer.waitForNodes()
-        //indexer.createIndex(c.indexName)
+        try {
+            indexer.createIndex(c.indexName)
+        } catch {
+            case e: Throwable => // TODO
+        }
+
         indexer.waitTillActive()
 
         if (c.initializeMapping) {
@@ -85,7 +90,6 @@ object Elasticsearch extends StoreInitializer[BufferedStore[XContentBuilder, Ind
 
     def newClient(): BufferedStore[XContentBuilder, IndexRequest] = Elasticsearch(_client)
 }
-
 
 
 /**

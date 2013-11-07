@@ -11,13 +11,14 @@ import scala.concurrent.duration._
 import scala.util.Random
 
 object Worker {
+    private[this] lazy val configuration = Log2esContext.configuration
 
     /**
      * create actor `Props` for `Worker` actor
      *
      * @return new `Props` instance
      */
-    def props() = Props(classOf[Worker]).withRouter(RoundRobinRouter(nrOfInstances = 10))
+    def props() = Props(classOf[Worker]).withRouter(RoundRobinRouter(nrOfInstances = configuration.noOfWorkers))
 
     /**
      * create and start a new scheduler that sends `FlushQueue` messages to given `Worker` actor.

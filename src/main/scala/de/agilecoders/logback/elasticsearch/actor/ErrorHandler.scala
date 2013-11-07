@@ -3,10 +3,7 @@ package de.agilecoders.logback.elasticsearch.actor
 import akka.actor._
 import ch.qos.logback.classic.spi.ILoggingEvent
 import de.agilecoders.logback.elasticsearch._
-import akka.actor.DeadLetter
-import akka.actor.UnhandledMessage
-import de.agilecoders.logback.elasticsearch.CantSendEvent
-import akka.actor.DeadLetter
+import java.util.concurrent.atomic.AtomicInteger
 
 
 object ErrorHandler {
@@ -38,16 +35,20 @@ class ErrorHandler(appender: ElasticSearchLogbackAppender) extends Actor with Ac
     }
 
     private[this] def handle(failure: CantSendEvent) = failure.message match {
-        case e: ILoggingEvent => if(retryOrDiscard(e)) cantSend -= 1
+        case e: ILoggingEvent => if (retryOrDiscard(e)) {
+            cantSend -= 1
+        }
         case _ => appender.addError(failure.message.toString)
     }
 
     private[this] def handle(deadLetter: DeadLetter) = deadLetter.message match {
-        case e: ILoggingEvent => if(retryOrDiscard(e)) deadLetters -= 1
+        case e: ILoggingEvent => if (retryOrDiscard(e)) {
+            deadLetters -= 1
+        }
         case _ => log.debug(s"ignored deadletter message: ${deadLetter.message} sent from ${deadLetter.sender} to ${deadLetter.recipient}")
     }
 
-    private[this] def retryOrDiscard(message: ILoggingEvent):Boolean = {
+    private[this] def retryOrDiscard(message: ILoggingEvent): Boolean = {
         appender.isDiscardable(message) match {
             case true => log.warning(s"dropped discardable event: $message"); false
             case false => {
@@ -74,39 +75,57 @@ class ErrorHandler(appender: ElasticSearchLogbackAppender) extends Actor with Ac
             deadLetters += 1
             handle(d)
         }
-        case u:UnhandledMessage => {
-            if (!ignorable.contains(u.message.getClass)) {
-                errors += 1
-
-                log.warning(s"unhandled message: ${u.message} sent from ${u.sender.path} to ${u.recipient.path}")
-            }
-        }
 
         case message: FlushQueue => log.debug("ignore flush messages because there's no queue to flush")
         case p: PoisonPill => log.debug("received poison pill")
-        case x => errors += 1; log.debug(s"got an error for: $x")
+
+        case u: UnhandledMessage => handleUnhandledMessage(u)
+        case x => handleUnhandledMessage(x)
+    }
+
+    private def handleUnhandledMessage(message: UnhandledMessage): Unit = {
+        if (!ignorable.contains(message.message.getClass)) {
+            errors += 1
+
+            log.warning(s"unhandled message: ${message.message} sent from ${message.sender.path} to ${message.recipient.path}")
+        }
+    }
+
+    private def handleUnhandledMessage(message: Any): Unit = {
+        if (!ignorable.contains(message.getClass)) {
+            errors += 1
+
+            log.warning(s"unhandled message: $message sent from ${sender.path}")
+        }
     }
 }
 
-object RetryLoggingEvent {
+protected object RetryLoggingEvent {
+    /**
+     * wraps a given ILoggingEvent with a RetryLoggingEvent or increments
+     * the RetryLoggingEvent counter when a RetryLoggingEvent is given.
+     */
     def retry(e: ILoggingEvent): ILoggingEvent = e match {
-        case r: RetryLoggingEvent => r.incrementCounter()
+        case event: RetryLoggingEvent => {
+            event.incrementCounter()
+            event
+        }
+
         case _ => RetryLoggingEvent(e)
     }
 }
 
-case class RetryLoggingEvent(e: ILoggingEvent) extends ILoggingEvent {
-    private[this] var counter: Int = 1
-    private[this] val lock = new Object
+/**
+ * A RetryLoggingEvent wraps an existing ILoggingEvent and keeps track of
+ * number of retries.
+ */
+protected case class RetryLoggingEvent(e: ILoggingEvent,
+                                       maxRetries: Int = Log2esContext.configuration.retryCount) extends ILoggingEvent {
+    private[this] lazy val counter = new AtomicInteger(1)
 
-    def incrementCounter(): RetryLoggingEvent = {
-        lock.synchronized {
-                              counter = counter + 1
-                              this
-                          }
-    }
+    def incrementCounter(): Int = counter.incrementAndGet()
 
-    def limitReached: Boolean = counter >= 3
+    def limitReached: Boolean = counter.get() >= maxRetries
 
     def prepareForDeferredProcessing() = e.prepareForDeferredProcessing()
 

@@ -3,35 +3,73 @@ package de.agilecoders.logback.elasticsearch.conf
 import akka.util.Timeout
 import ch.qos.logback.classic.Level
 import com.typesafe.config.{ConfigFactory, Config}
-import de.agilecoders.logback.elasticsearch.mapper.LoggingEventToXContentMapper
 import java.io.IOException
 import scala.concurrent.duration._
-import scala.io.{Source, BufferedSource}
+import scala.io.{BufferedSource, Source}
 
 /**
- * main library configuration
+ * Akka based implementation of `Configuration` trait
  *
- * TODO miha: document
- *
- * @param c the baking `Config` instance
+ * @param name the unique log2es name
  */
-case class AkkaBasedConfiguration(private val c: Config) extends Configuration {
+case class AkkaBasedConfiguration(name: String) extends Configuration {
 
     import scala.collection.convert.WrapAsScala._
 
-    private[this] lazy val fields: java.util.List[String] = c.getStringList("configuration.fields")
+    /**
+     * initializes the log2es configuration.
+     */
+    private[this] def initializeConfigInstance(): Config = {
+        val config = ConfigFactory.load()
 
-    lazy val useAsyncHttp: Boolean = c.getBoolean("configuration.http.useAsyncHttp")
+        (findCustomConfig match {
+            case Some(s: Source) => {
+                ConfigFactory.parseReader(s.bufferedReader()).withFallback(config)
+            }
+            case _ => config
+        }).getConfig(name)
+    }
 
-    lazy val retryCount: Int = c.getInt("configuration.retryCount")
+    /**
+     * try to find a custom configuration file in classpath
+     *
+     * @return buffered source of custom configuration file
+     */
+    private[this] def findCustomConfig: Option[BufferedSource] = {
+        toPath(s"/$name.conf") match {
+            case None => toPath(s"$name.conf")
+            case some@Some(source: BufferedSource) => some
+            case _ => throw new IllegalArgumentException("can't find custom config") // this should never ever happen
+        }
+    }
 
-    lazy val noOfWorkers: Int = c.getInt("configuration.noOfWorkers")
+    /**
+     * transforms a given path to a config file into a buffered source
+     *
+     * @param pathToConfig the full path to config file
+     * @return buffered source of given path
+     */
+    private[this] def toPath(pathToConfig: String): Option[BufferedSource] = try {
+        Some(Source.fromURL(getClass.getResource(pathToConfig)))
+    } catch {
+        case e: IOException => None
+    }
 
-    lazy val flushInterval: Int = c.getInt("configuration.flushInterval")
+    private[this] lazy val fields: java.util.List[String] = file.getStringList("configuration.fields")
+    
+    lazy val file: Config = initializeConfigInstance()
 
-    lazy val converterTimeout: Timeout = Timeout(c.getInt("configuration.converterTimeout") milliseconds)
+    lazy val useAsyncHttp: Boolean = file.getBoolean("configuration.http.useAsyncHttp")
 
-    lazy val shutdownAwaitTimeout: Timeout = Timeout(c.getInt("configuration.shutdownAwaitTimeout") milliseconds)
+    lazy val retryCount: Int = file.getInt("configuration.retryCount")
+
+    lazy val noOfWorkers: Int = file.getInt("configuration.noOfWorkers")
+
+    lazy val flushInterval: Int = file.getInt("configuration.flushInterval")
+
+    lazy val converterTimeout: Timeout = Timeout(file.getInt("configuration.converterTimeout") milliseconds)
+
+    lazy val shutdownAwaitTimeout: Timeout = Timeout(file.getInt("configuration.shutdownAwaitTimeout") milliseconds)
 
     lazy val addCaller: Boolean = fields.contains("caller")
 
@@ -55,28 +93,22 @@ case class AkkaBasedConfiguration(private val c: Config) extends Configuration {
 
     lazy val addLevel: Boolean = fields.contains("level")
 
-    lazy val initializeMapping: Boolean = c.getBoolean("configuration.initializeMapping")
+    lazy val initializeMapping: Boolean = file.getBoolean("configuration.initializeMapping")
 
-    lazy val queueSize: Int = c.getInt("configuration.queueSize")
+    lazy val queueSize: Int = file.getInt("configuration.queueSize")
 
-    lazy val indexName: String = c.getString("configuration.indexName")
+    lazy val indexName: String = file.getString("configuration.indexName")
 
-    lazy val typeName: String = c.getString("configuration.typeName")
+    lazy val typeName: String = file.getString("configuration.typeName")
 
-    lazy val discardable: String = c.getString("configuration.discardable")
+    lazy val discardable: String = file.getString("configuration.discardable")
 
     lazy val discardableLevel: Int = Level.valueOf(discardable).levelInt
 
-    lazy val hosts: Iterable[String] = c.getStringList("configuration.hosts")
+    lazy val hosts: Iterable[String] = file.getStringList("configuration.hosts")
 
-    lazy val discoveryFrequency: Int = c.getInt("configuration.http.discoveryFrequency")
+    lazy val sniffHostnames: Boolean = file.getBoolean("configuration.sniffHostnames")
 
-    lazy val defaultMaxTotalConnectionPerRoute: Int = c.getInt("configuration.http.defaultMaxTotalConnectionPerRoute")
-
-    lazy val maxTotalConnection: Int = c.getInt("configuration.http.maxTotalConnection")
-
-    lazy val discoveryEnabled: Boolean = c.getBoolean("configuration.http.discoveryEnabled")
-
-    lazy val multiThreaded: Boolean = c.getBoolean("configuration.http.multiThreaded")
+    lazy val clusterName: String = file.getString("configuration.clusterName")
 
 }

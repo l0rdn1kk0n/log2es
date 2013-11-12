@@ -2,11 +2,11 @@ package de.agilecoders.logback.elasticsearch.actor
 
 import akka.actor._
 import com.twitter.ostrich.stats.Stats
-import de.agilecoders.logback.elasticsearch.FlushQueue
-import de.agilecoders.logback.elasticsearch.Log2esContext
-import de.agilecoders.logback.elasticsearch.store.{Store, Notifier}
+import de.agilecoders.logback.elasticsearch.store.{BufferedStore, Store, Notifier}
+import de.agilecoders.logback.elasticsearch.{Converted, FlushQueue, Log2esContext}
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.common.xcontent.XContentBuilder
+import de.agilecoders.logback.elasticsearch.conf.{DependencyHolder, Configuration}
 
 
 /**
@@ -23,22 +23,24 @@ object IndexSender {
  *
  * @author miha
  */
-class IndexSender() extends Actor with RestartingSupervisor with ActorLogging with DefaultMessageHandler {
-    private[this] lazy val configuration = Log2esContext.configuration
-    private[this] lazy val client = Store.newClient()
-    private[this] var received: Int = 0
+class IndexSender() extends Actor with RestartingSupervisor with ActorLogging with DefaultMessageHandler with DependencyHolder {
+    private[this] lazy val configuration = newConfiguration()
+    private[this] lazy val client = newStoreClient()
 
     override protected def onMessage = {
+        case Converted(event: AnyRef) if event.isInstanceOf[XContentBuilder] => append(event.asInstanceOf[XContentBuilder])
         case event: XContentBuilder => append(event)
     }
 
     override protected def onFlushQueue(message: FlushQueue) = flush()
 
-    override protected def onPoisonPill(message: PoisonPill) = client.shutdown()
-
-    private[this] def append(data: XContentBuilder) = {
+    /**
+     * appends a given log event to es bulk operation
+     *
+     * @param data log event as XContentBuilder
+     */
+    private[this] def append(data: XContentBuilder): Unit = {
         client.newEntry(data)
-        received += 1
 
         Stats.incr("log2es.sender.received")
         Stats.addMetric("log2es.sender.queueSize", client.size)
@@ -49,7 +51,7 @@ class IndexSender() extends Actor with RestartingSupervisor with ActorLogging wi
     /**
      * flush all log messages if queue size was reached
      */
-    private[this] def flushIfNecessary() {
+    private[this] def flushIfNecessary(): Unit = {
         if (client.size > configuration.queueSize) {
             flush()
         }
@@ -58,7 +60,7 @@ class IndexSender() extends Actor with RestartingSupervisor with ActorLogging wi
     /**
      * flush all log messages if queue contains at least one element
      */
-    private[this] def flush() {
+    private[this] def flush(): Unit = {
         if (client.size > 0) {
             log.debug(s"flush queue with size of ${client.size}")
 
@@ -77,7 +79,7 @@ class IndexSender() extends Actor with RestartingSupervisor with ActorLogging wi
                 def onFailure(e: Throwable, q: Iterable[IndexRequest]) = {
                     Stats.incr("log2es.sender.sentError")
 
-                    // TODO add error handling...
+                    // TODO miha: implement error handling
                 }
 
                 def onSuccess() = {
@@ -88,11 +90,7 @@ class IndexSender() extends Actor with RestartingSupervisor with ActorLogging wi
     }
 
     override def postRestart(reason: Throwable) = reason match {
-        case e: RuntimeException => {
-            client.shutdown()
-            // TODO
-        }
-        case _ => // TODO miha: ???
+        case _ => client.shutdown()
     }
 
     override def postStop() = {
@@ -100,8 +98,18 @@ class IndexSender() extends Actor with RestartingSupervisor with ActorLogging wi
 
         client.shutdown()
 
-        log.debug(s"shutting down sender: ${hashCode()}; current queue size: ${client.size}; received: $received;")
+        log.debug(s"shutting down sender: ${hashCode()}; current queue size: ${client.size};")
 
         super.postStop()
     }
+
+    /**
+     * creates a new store client instance
+     */
+    protected def newStoreClient(): BufferedStore[XContentBuilder, IndexRequest] = dependencies.newStoreClient()
+
+    /**
+     * loads the configuration instance
+     */
+    protected def newConfiguration():Configuration = dependencies.configuration
 }

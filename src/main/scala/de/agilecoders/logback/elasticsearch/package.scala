@@ -27,6 +27,11 @@ package object elasticsearch {
     case class Error(throwable: Throwable) extends Feedback
 
     /**
+     * an error that is thrown when a elasticsearch error occures
+     */
+    case class ElasticsearchError(throwable: Throwable) extends Feedback
+
+    /**
      * base action message
      */
     sealed trait Action
@@ -56,9 +61,9 @@ package object elasticsearch {
      */
     case class ImAlive() extends Action
 
-    lazy val flushQueue = FlushQueue
-    lazy val alive = Alive
-    lazy val imAlive = ImAlive
-    lazy val imDead = ImDead
+    lazy val flushQueue = FlushQueue()
+    lazy val alive = Alive()
+    lazy val imAlive = ImAlive()
+    lazy val imDead = ImDead()
 
 }

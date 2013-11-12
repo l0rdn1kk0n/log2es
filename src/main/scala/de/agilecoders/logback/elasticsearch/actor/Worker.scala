@@ -5,13 +5,13 @@ import akka.routing.{RoundRobinRouter, Broadcast}
 import ch.qos.logback.classic.spi.ILoggingEvent
 import de.agilecoders.logback.elasticsearch._
 import de.agilecoders.logback.elasticsearch.actor.Reaper.WatchMe
-import de.agilecoders.logback.elasticsearch.conf.Configuration
+import de.agilecoders.logback.elasticsearch.conf.{DependencyHolder, Configuration}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 import scala.util.Random
 
-object Worker {
-    private[this] lazy val configuration = Log2esContext.configuration
+object Worker extends DependencyHolder {
+    private[this] lazy val configuration = dependencies.configuration
 
     /**
      * create actor `Props` for `Worker` actor
@@ -41,29 +41,22 @@ object Worker {
  *
  * @author miha
  */
-class Worker() extends Actor with DefaultSupervisor with ActorLogging with DefaultMessageHandler {
-    private[this] lazy val scheduler: Cancellable = Worker.newScheduler(context, configuration)
-    private[this] lazy val configuration = Log2esContext.configuration
-    private[this] lazy val converter: ActorRef = Creator.newConverter(context)
-    private[this] lazy val indexSender: ActorRef = Creator.newIndexSender(context)
+class Worker() extends Actor with DefaultSupervisor with ActorLogging with DefaultMessageHandler with DependencyHolder {
+    private[this] lazy val configuration = newConfiguration()
+    private[this] lazy val converter: ActorRef = newConverter()
+    private[this] lazy val indexSender: ActorRef = newSender()
+    private[this] lazy val scheduler: Cancellable = newScheduler(configuration)
 
     override protected def onMessage = {
         case Converted(message: AnyRef) => indexSender ! message
 
-        case event: ILoggingEvent => converter ! event
+        case event: ILoggingEvent => converter.tell(event, indexSender)
     }
 
     override protected def onFlushQueue(message: FlushQueue) = {
         log.debug(s"received flush queue action from $sender")
 
         flush()
-    }
-
-    override protected def onPoisonPill(message: PoisonPill) = {
-        log.debug(s"received poison pill from $sender, flush and forward")
-
-        flush()
-        forward(message)
     }
 
     /**
@@ -97,6 +90,9 @@ class Worker() extends Actor with DefaultSupervisor with ActorLogging with Defau
      * after actor was stopped, the scheduler must be stopped too
      */
     override def postStop() {
+        flush()
+        forward(PoisonPill.getInstance)
+
         scheduler.cancel()
 
         context.stop(converter)
@@ -106,5 +102,25 @@ class Worker() extends Actor with DefaultSupervisor with ActorLogging with Defau
 
         super.postStop()
     }
+
+    /**
+     * loads the configuration instance
+     */
+    protected def newConfiguration(): Configuration = dependencies.configuration
+
+    /**
+     * creates a new converter actor reference
+     */
+    protected def newConverter(): ActorRef = dependencies.newConverter(context)
+
+    /**
+     * creates a new sender actor reference
+     */
+    protected def newSender(): ActorRef = dependencies.newSender(context)
+
+    /**
+     * creates a new scheduler instance
+     */
+    protected def newScheduler(configuration: Configuration): Cancellable = Worker.newScheduler(context, configuration)
 
 }

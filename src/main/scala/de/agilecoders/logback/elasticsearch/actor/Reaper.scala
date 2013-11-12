@@ -1,11 +1,12 @@
 package de.agilecoders.logback.elasticsearch.actor
 
 import akka.actor.{ActorLogging, Actor, ActorRef, Terminated}
-import scala.collection.mutable.ArrayBuffer
 import de.agilecoders.logback.elasticsearch.Log2esContext
 import de.agilecoders.logback.elasticsearch.actor.Reaper.AllSoulsReaped
+import scala.collection.mutable.ArrayBuffer
 
 object Reaper {
+
     /**
      * Used by others to register an Actor for watching
      *
@@ -17,6 +18,7 @@ object Reaper {
      * Used by reaper to publish "AllSoulsReaped" event.
      */
     case class AllSoulsReaped()
+
 }
 
 /**
@@ -24,13 +26,14 @@ object Reaper {
  * shutting down the ActorSystem.
  */
 abstract class Reaper extends Actor with ActorLogging {
+
     import Reaper._
 
     // Keep track of what we're watching
     private[this] lazy val watched = ArrayBuffer.empty[ActorRef]
 
     /**
-     * Derivations need to implement this method. It's the hook that's called when everything's dead
+     * Derivations need to implement this method. It's the hook that's called when everything is dead
      */
     def allSoulsReaped(): Unit
 
@@ -38,20 +41,18 @@ abstract class Reaper extends Actor with ActorLogging {
      * Watch and check for termination
      */
     final def receive = {
-        case WatchMe(ref) =>
+        case WatchMe(ref) => {
             context.watch(ref)
             watched += ref
+        }
 
-            log.debug("received new actor: " + ref.path)
-        case Terminated(ref) =>
+        case Terminated(ref) => {
             watched -= ref
-            log.debug("received terminated actor: " + ref.path)
 
             if (watched.isEmpty) {
-                log.debug("all souls reaped")
-
                 allSoulsReaped()
             }
+        }
     }
 
     override def preStart() = {

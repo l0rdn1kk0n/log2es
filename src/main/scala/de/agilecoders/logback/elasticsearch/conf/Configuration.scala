@@ -1,47 +1,23 @@
 package de.agilecoders.logback.elasticsearch.conf
 
-import com.typesafe.config.{ConfigFactory, Config}
-import java.io.IOException
-import scala.io.{BufferedSource, Source}
 import akka.util.Timeout
-import de.agilecoders.logback.elasticsearch.mapper.LoggingEventToXContentMapper
+import com.typesafe.config.Config
 
+/**
+ * Configuration companion object that is responsible to initialize configuration.
+ */
 object Configuration {
     val name: String = "log2es"
 
-    lazy val configInstance = initializeConfigInstance()
-    lazy val instance = AkkaBasedConfiguration(configInstance)
-
-    private[this] def initializeConfigInstance(): Config = {
-        val config = ConfigFactory.load()
-
-        (findCustomConfig match {
-            case Some(s: Source) => {
-                ConfigFactory.parseReader(s.bufferedReader()).withFallback(config)
-            }
-            case _ => config
-        }).getConfig(name)
-    }
-
-    private[this] def findCustomConfig: Option[BufferedSource] = {
-        toPath(s"/$name.conf") match {
-            case None => toPath(s"$name.conf")
-            case some@Some(source: BufferedSource) => some
-            case _ => throw new IllegalArgumentException("can't find custom config")
-        }
-    }
-
-    private[this] def toPath(pathToConfig: String): Option[BufferedSource] = try {
-        Some(Source.fromURL(getClass.getResource(pathToConfig)))
-    } catch {
-        case e: IOException => None
-    }
+    lazy val instance = AkkaBasedConfiguration(name)
 }
 
-
+/**
+ * base configuration trait
+ */
 trait Configuration {
 
-    def useAsyncHttp: Boolean
+    def file: Config
 
     def retryCount: Int
 
@@ -89,13 +65,8 @@ trait Configuration {
 
     def hosts: Iterable[String]
 
-    def discoveryFrequency: Int
+    def sniffHostnames: Boolean
 
-    def defaultMaxTotalConnectionPerRoute: Int
+    def clusterName: String
 
-    def maxTotalConnection: Int
-
-    def discoveryEnabled: Boolean
-
-    def multiThreaded: Boolean
 }

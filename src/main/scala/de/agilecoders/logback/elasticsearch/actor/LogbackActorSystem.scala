@@ -10,7 +10,7 @@ import de.agilecoders.logback.elasticsearch.conf.Configuration
  */
 object LogbackActorSystem {
 
-    lazy val instance: ActorSystem = ActorSystem.create(Configuration.name, Configuration.configInstance)
+    lazy val instance: ActorSystem = ActorSystem.create(Configuration.name, Configuration.instance.file)
 
     /**
      * starts up the actor system

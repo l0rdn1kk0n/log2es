@@ -9,13 +9,13 @@ class AppenderSpec(_system: ActorSystem) extends ElasticsearchLogbackAppenderSup
     "An Appender" must {
 
         "handle a lot of incoming events" in {
-            (1 to 100000).par foreach (i => appender.append(newEvent()))
+            (1 to 10000).par foreach (i => appender.append(Factory.newEvent()))
 
             waitForEmptyQueue()
         }
 
         "handle a small amount of messages and flush everything during shutdown" in {
-            (1 to 1).par foreach (i => appender.append(newEvent()))
+            (1 to 1).par foreach (i => appender.append(Factory.newEvent()))
 
             waitForEmptyQueue()
         }

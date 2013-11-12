@@ -1,0 +1,48 @@
+{
+    "document": {
+        "properties": {
+            "message": {
+                "type": "string",
+                "store": "yes"
+            },
+            "level": {
+                "type": "string",
+                "store": "yes"
+            },
+            "logger": {
+                "type": "string"
+            },
+            "timestamp": {
+                "type": "long",
+                "store": "yes"
+            },
+            "date": {
+                "type": "date",
+                "format": "date_time",
+                "store": "yes"
+            },
+            "thread": {
+                "type": "string"
+            },
+            "mdc": {
+                "type": "string",
+                "store": "yes"
+            },
+            "arguments": {
+                "type": "object",
+                "enabled": false
+            },
+            "caller": {
+                "type": "object",
+                "enabled": false
+            },
+            "stacktrace": {
+                "type": "object",
+                "enabled": false
+            },
+            "marker": {
+                "type": "string"
+            }
+        }
+    }
+}

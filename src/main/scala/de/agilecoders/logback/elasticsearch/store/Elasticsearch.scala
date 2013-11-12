@@ -1,7 +1,7 @@
 package de.agilecoders.logback.elasticsearch.store
 
 import akka.util.Timeout
-import de.agilecoders.logback.elasticsearch.Log2esContext
+import de.agilecoders.logback.elasticsearch.{ElasticsearchError, Log2esContext}
 import java.util.concurrent.TimeUnit
 import org.elasticsearch.action.bulk.BulkResponse
 import org.elasticsearch.action.index.IndexRequest
@@ -10,6 +10,7 @@ import org.elasticsearch.client.transport.TransportClient
 import org.elasticsearch.common.settings.ImmutableSettings
 import org.elasticsearch.common.transport.InetSocketTransportAddress
 import org.elasticsearch.common.xcontent.XContentBuilder
+import scala.io.Source
 import scalastic.elasticsearch.{ClientIndexer, Indexer}
 
 /**
@@ -24,22 +25,27 @@ object Elasticsearch extends StoreInitializer[BufferedStore[XContentBuilder, Ind
         indexer.start
 
         indexer.waitForNodes()
-        try {
-            indexer.createIndex(c.indexName)
-        } catch {
-            case e: Throwable => // TODO
-        }
-
         indexer.waitTillActive()
 
-        if (c.initializeMapping) {
+        import org.elasticsearch.index.query.QueryBuilders._
+        val count = try {
+            indexer.count(Seq(c.indexName), Seq(c.typeName), termQuery("_type", c.typeName)).getCount
+        } catch {
+            case _: Throwable => 0
+        }
+
+        if (count <= 0) {
             try {
-                indexer.putMapping(c.indexName, c.typeName, mapping())
+                indexer.createIndex(c.indexName)
             } catch {
-                case exc: Exception => {
-                    // TODO: add error handling
-                    Console.out.append(s"\n######## ERROR: ${exc.getMessage} \n")
-                    exc.printStackTrace(Console.out)
+                case e: Throwable => Log2esContext.system.eventStream.publish(ElasticsearchError(e))
+            }
+
+            if (c.initializeMapping) {
+                try {
+                    indexer.putMapping(c.indexName, c.typeName, mapping)
+                } catch {
+                    case e: Throwable => Log2esContext.system.eventStream.publish(ElasticsearchError(e))
                 }
             }
         }
@@ -49,9 +55,11 @@ object Elasticsearch extends StoreInitializer[BufferedStore[XContentBuilder, Ind
 
     private[this] lazy val _transportClient: TransportClient = {
         val settings = ImmutableSettings.settingsBuilder()
-                       .put("client.transport.sniff", true)
-                       .put("cluster.name", "elasticsearch_miha") // TODO
-                       .put("client.transport.ignore_cluster_name", "true") // TODO
+                       .put("node.data", false)
+                       .put("node.client", true)
+                       .put("client.transport.sniff", c.sniffHostnames)
+                       .put("client.transport.ignore_cluster_name", c.clusterName == "")
+                       .put("cluster.name", c.clusterName)
                        .build()
 
         val client = new TransportClient(settings)
@@ -63,26 +71,8 @@ object Elasticsearch extends StoreInitializer[BufferedStore[XContentBuilder, Ind
         client
     }
 
-    // TODO: move to template
-    private def mapping(): String = s"""
-    {
-        "document": {
-            "properties" : {
-                "message" : {"type" : "string", "store" : "yes"}, "
-                "level" : {"type" : "string", "store" : "yes"},"
-                "logger" : {"type" : "string"},"
-                "timestamp" : {"type" : "long", "store" : "yes"},"
-                "date" : {"type" : "date", "format":"date_time" "store" : "yes"},"
-                "thread" : {"type" : "string"},"
-                "mdc" : {"type" : "string", "store" : "yes"},"
-                "arguments" : {"type" : "object", "enabled": false},"
-                "caller" : {"type" : "object", "enabled": false},"
-                "stacktrace" : {"type" : "object", "enabled": false},"
-                "marker" : {"type" : "string"}
-            }
-        }
-    }
-    """
+    private[this] lazy val mapping: String = Source.fromURL(getClass.getResource("/mapping.json")).getLines()
+                                             .mkString("\n")
 
     def connect(): Boolean = _transportClient.connectedNodes().size() > 0
 
@@ -93,7 +83,9 @@ object Elasticsearch extends StoreInitializer[BufferedStore[XContentBuilder, Ind
 
 
 /**
- * TODO miha: document class purpose
+ * Elasticsearch client that queues messages and sends them as bulk request to elasticsearch cluster.
+ *
+ * TODO miha: add retries for broken send requests.
  *
  * @author miha
  */

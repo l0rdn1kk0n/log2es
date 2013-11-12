@@ -5,6 +5,7 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import de.agilecoders.logback.elasticsearch.mapper.LoggingEventToXContentMapper
 import ch.qos.logback.classic.Level
+import com.typesafe.config.Config
 
 /**
  * custom configuration for tests
@@ -15,6 +16,8 @@ case class CustomizableConfiguration(   flushInterval: Int = 3000,
                                         useAsyncHttp: Boolean = false,
                                         converterTimeout:Timeout = 3 seconds,
                                         shutdownAwaitTimeout:Timeout = 3 seconds,
+                                        clusterName: String = "elasticsearch",
+                                        noOfWorkers:Int = 5,
                                         addCaller:Boolean = true,
                                         addArguments:Boolean = true,
                                         addDate:Boolean = true,
@@ -26,6 +29,7 @@ case class CustomizableConfiguration(   flushInterval: Int = 3000,
                                         addLogger:Boolean = true,
                                         addTimestamp:Boolean = true,
                                         addLevel:Boolean = true,
+                                        sniffHostnames: Boolean = true,
                                         initializeMapping:Boolean = false,
                                         retryCount: Int = 3) extends Configuration {
 
@@ -44,13 +48,5 @@ case class CustomizableConfiguration(   flushInterval: Int = 3000,
 
     def transformer = LoggingEventToXContentMapper(this)
 
-    def discoveryFrequency = 5000
-
-    def defaultMaxTotalConnectionPerRoute = 100
-
-    def maxTotalConnection = 10
-
-    def discoveryEnabled = true
-
-    def multiThreaded = true
+    def file: Config = null
 }

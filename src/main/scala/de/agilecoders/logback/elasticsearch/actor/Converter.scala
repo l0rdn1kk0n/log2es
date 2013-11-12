@@ -4,8 +4,10 @@ import akka.actor.{PoisonPill, Props, Actor}
 import akka.routing.RoundRobinRouter
 import ch.qos.logback.classic.spi.ILoggingEvent
 import com.twitter.ostrich.stats.Stats
-import de.agilecoders.logback.elasticsearch.{Converted, FlushQueue, Log2esContext}
-import de.agilecoders.logback.elasticsearch.mapper.LoggingEventToXContentMapper
+import de.agilecoders.logback.elasticsearch.FlushQueue
+import de.agilecoders.logback.elasticsearch.conf.DependencyHolder
+import de.agilecoders.logback.elasticsearch.mapper.LoggingEventMapper
+import org.elasticsearch.common.xcontent.XContentBuilder
 
 /**
  * Converts an `ILoggingEvent` into a map
@@ -16,27 +18,23 @@ object Converter {
     def props() = Props(classOf[Converter]).withRouter(RoundRobinRouter(nrOfInstances = 10))
 }
 
-class Converter() extends Actor with DefaultSupervisor with DefaultMessageHandler {
-    private[this] lazy val mapper = LoggingEventToXContentMapper(Log2esContext.configuration)
+case class Converter() extends Actor with DefaultSupervisor with DefaultMessageHandler with DependencyHolder {
+    private[this] lazy val mapper: LoggingEventMapper[XContentBuilder] = newMapper()
 
     override protected def onMessage = {
         case event: ILoggingEvent => sender ! convert(event)
     }
 
-    private def convert(event: ILoggingEvent): AnyRef = {
-        Stats.incr("log2es.converter.converted")
-
-        Stats.time("log2es.converter.convertTime") {
-            // TODO: add error handling
-            Converted(mapper.map(event))
-        }
+    private[this] def convert(event: ILoggingEvent): AnyRef = Stats.time("log2es.converter.convertTime") {
+        mapper.map(event)
     }
 
-    protected def onFlushQueue(message: FlushQueue) = {
+    protected override def onFlushQueue(message: FlushQueue) = {
         // nothing to do here
     }
 
-    protected def onPoisonPill(message: PoisonPill) = {
-        // nothing to do here
-    }
+    /**
+     * loads the mapper instance
+     */
+    protected def newMapper(): LoggingEventMapper[XContentBuilder] = dependencies.mapper
 }

@@ -76,6 +76,12 @@ class ErrorHandler(appender: ElasticSearchLogbackAppender) extends Actor with Ac
             handle(d)
         }
 
+        case ElasticsearchError(e: Throwable) => {
+            log.error(s"${e.getMessage}", e)
+
+            appender.addError(s"${e.getMessage}", e)
+        }
+
         case message: FlushQueue => log.debug("ignore flush messages because there's no queue to flush")
         case p: PoisonPill => log.debug("received poison pill")
 

@@ -11,12 +11,20 @@
         <relativePath></relativePath>
     </parent>
 
-    <groupId>de.agilecoders.logback</groupId>
-    <artifactId>log2es</artifactId>
+    <groupId>de.agilecoders.elasticsearch.logger</groupId>
+    <artifactId>log2es-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
-    <name>log2es</name>
+    <name>log2es-parent</name>
     <description>logback appender that sends all log events to elasticsearch</description>
     <url>https://github.com/l0rdn1kk0n/log2es</url>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>core</module>
+        <module>log2es-logback</module>
+        <module>log2es-log4j</module>
+        <module>log2es-log4j2</module>
+    </modules>
 
     <scm>
         <url>git@github.com:l0rdn1kk0n/log2es.git</url>
@@ -40,7 +48,7 @@
         <mvn.build.scala.version>2.10.3</mvn.build.scala.version>
         <mvn.build.scala-plugin.version>3.1.6</mvn.build.scala-plugin.version>
 
-        <ch.qos.logback-version>1.0.9</ch.qos.logback-version>
+        <ch.qos.logback-version>1.0.13</ch.qos.logback-version>
         <com.typesafe.akka-version>2.2.1</com.typesafe.akka-version>
         <io.searchbox.jest-version>0.0.5</io.searchbox.jest-version>
         <maven-compiler-plugin.version>3.1</maven-compiler-plugin.version>
@@ -57,6 +65,12 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>de.agilecoders.elasticsearch.logger</groupId>
+                <artifactId>log2es-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-classic</artifactId>
@@ -130,76 +144,19 @@
                 <artifactId>scala-library</artifactId>
                 <version>${mvn.build.scala.version}</version>
             </dependency>
+
+            <dependency>
+                <groupId>org.scalastic</groupId>
+                <artifactId>scalastic_2.10</artifactId>
+                <version>0.90.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.elasticsearch</groupId>
+                <artifactId>elasticsearch</artifactId>
+                <version>0.90.5</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
-
-    <dependencies>
-        <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-actor_2.10</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-slf4j_2.10</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-testkit_2.10</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.twitter</groupId>
-            <artifactId>ostrich_2.10</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.scalastic</groupId>
-            <artifactId>scalastic_2.10</artifactId>
-            <version>0.90.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.elasticsearch</groupId>
-            <artifactId>elasticsearch</artifactId>
-            <version>0.90.5</version>
-        </dependency>
-        <!--<dependency>
-            <groupId>io.searchbox</groupId>
-            <artifactId>jest</artifactId>
-        </dependency>                         -->
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.10</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>joda-time</groupId>
-            <artifactId>joda-time</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.github.nscala-time</groupId>
-            <artifactId>nscala-time_2.10</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.carrotsearch</groupId>
-            <artifactId>hppc</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-        </dependency>
-    </dependencies>
 
     <build>
         <resources>
@@ -211,16 +168,18 @@
                 </includes>
                 <excludes>
                     <exclude>**/*.java</exclude>
+                    <exclude>**/*.scala</exclude>
                 </excludes>
             </resource>
             <resource>
                 <filtering>false</filtering>
-                <directory>src/main/java</directory>
+                <directory>src/main/scala</directory>
                 <includes>
                     <include>**</include>
                 </includes>
                 <excludes>
                     <exclude>**/*.java</exclude>
+                    <exclude>**/*.scala</exclude>
                 </excludes>
             </resource>
         </resources>
@@ -233,35 +192,23 @@
                 </includes>
                 <excludes>
                     <exclude>**/*.java</exclude>
+                    <exclude>**/*.scala</exclude>
                 </excludes>
             </testResource>
             <testResource>
                 <filtering>false</filtering>
-                <directory>src/test/java</directory>
+                <directory>src/test/scala</directory>
                 <includes>
                     <include>**</include>
                 </includes>
                 <excludes>
                     <exclude>**/*.java</exclude>
+                    <exclude>**/*.scala</exclude>
                 </excludes>
             </testResource>
         </testResources>
 
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.5.1</version>
-                <configuration>
-                    <source>${mvn.build.java.version}</source>
-                    <target>${mvn.build.java.version}</target>
-                    <compilerVersion>${mvn.build.java.version}</compilerVersion>
-                    <encoding>${project.build.sourceEncoding}</encoding>
-                    <showDeprecation>true</showDeprecation>
-                    <showWarnings>true</showWarnings>
-                    <optimize>true</optimize>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
@@ -281,32 +228,70 @@
                 <version>${versions-maven-plugin.version}</version>
                 <inherited>true</inherited>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>2.2</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>jar</goal>
-                            <goal>test-jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>2.4</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>test-jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
+
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>2.5.1</version>
+                    <configuration>
+                        <source>${mvn.build.java.version}</source>
+                        <target>${mvn.build.java.version}</target>
+                        <compilerVersion>${mvn.build.java.version}</compilerVersion>
+                        <encoding>${project.build.sourceEncoding}</encoding>
+                        <showDeprecation>true</showDeprecation>
+                        <showWarnings>true</showWarnings>
+                        <optimize>true</optimize>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>net.alchim31.maven</groupId>
+                    <artifactId>scala-maven-plugin</artifactId>
+                    <version>${mvn.build.scala-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>compile</goal>
+                                <goal>testCompile</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>versions-maven-plugin</artifactId>
+                    <version>${versions-maven-plugin.version}</version>
+                    <inherited>true</inherited>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>2.2</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>jar</goal>
+                                <goal>test-jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>2.4</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>test-jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
     </build>
 
     <licenses>

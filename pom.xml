@@ -244,8 +244,8 @@
                         <showDeprecation>true</showDeprecation>
                         <showWarnings>true</showWarnings>
                         <optimize>true</optimize>
-                        <meminitial>512m</meminitial>
-                        <maxmem>2024m</maxmem>
+                        <meminitial>256m</meminitial>
+                        <maxmem>1024m</maxmem>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -260,6 +260,13 @@
                             </goals>
                         </execution>
                     </executions>
+                    <configuration>
+                        <jvmArgs>
+                            <jvmArg>-Xms256m</jvmArg>
+                            <jvmArg>-XX:MaxPermSize=1024m</jvmArg>
+                            <jvmArg>-Xmx1024m</jvmArg>
+                        </jvmArgs>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>

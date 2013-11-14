@@ -244,6 +244,8 @@
                         <showDeprecation>true</showDeprecation>
                         <showWarnings>true</showWarnings>
                         <optimize>true</optimize>
+                        <meminitial>512m</meminitial>
+                        <maxmem>2024m</maxmem>
                     </configuration>
                 </plugin>
                 <plugin>

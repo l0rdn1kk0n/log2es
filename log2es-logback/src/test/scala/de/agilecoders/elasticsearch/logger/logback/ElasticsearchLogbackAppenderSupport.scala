@@ -1,15 +1,16 @@
-package de.agilecoders.elasticsearch.logger.core
+package de.agilecoders.elasticsearch.logger.logback
 
 import akka.actor.ActorDSL._
 import akka.actor.{ActorDSL, ActorRef, ActorSystem}
-import akka.testkit.{TestKit, ImplicitSender}
+import akka.testkit.{ImplicitSender, TestKit}
+import ch.qos.logback.classic.LoggerContext
 import com.twitter.ostrich.stats.{Distribution, Stats}
-import de.agilecoders.logback.elasticsearch.actor.Reaper.AllSoulsReaped
+import de.agilecoders.elasticsearch.logger.core.actor.Reaper.AllSoulsReaped
+import de.agilecoders.elasticsearch.logger.core.messages.Action._
 import java.util.concurrent.TimeUnit
-import org.joda.time.DateTime
+import org.elasticsearch.common.base.Stopwatch
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scala.concurrent.duration._
-import de.agilecoders.elasticsearch.logger.logback.ActorBasedElasticSearchLogbackAppender
 
 /**
  * helper class for all appender tests
@@ -60,7 +61,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
     }
 
     protected final def waitForEmptyQueue() {
-        Thread.sleep(5000)
+        Thread.sleep(5000) // give messages a chance to flow ;)
         appender.router ! alive
 
         expectMsg(timeout, imAlive)

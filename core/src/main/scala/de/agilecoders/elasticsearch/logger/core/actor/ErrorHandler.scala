@@ -1,14 +1,12 @@
 package de.agilecoders.elasticsearch.logger.core.actor
 
 import akka.actor._
-import de.agilecoders.elasticsearch.logger.core.Log2esAppender
-import de.agilecoders.elasticsearch.logger.logger.{ElasticsearchError, CantSendEvent, FlushQueue}
-import java.util.concurrent.atomic.AtomicInteger
+import de.agilecoders.elasticsearch.logger.core.messages.{ElasticsearchError, CantSendEvent, FlushQueue}
 
 
 object ErrorHandler {
 
-    def props(appender: Log2esAppender[_]): Props = Props(classOf[ErrorHandler], appender)
+    def props(): Props = Props(classOf[ErrorHandler])
 }
 
 /**
@@ -16,7 +14,7 @@ object ErrorHandler {
  *
  * @author miha
  */
-class ErrorHandler(appender: Log2esAppender[_]) extends Actor with ActorLogging {
+class ErrorHandler() extends Actor with ActorLogging {
     private[this] val ignorable = Seq(classOf[FlushQueue])
     private[this] var errors = 0
     private[this] var deadLetters = 0
@@ -34,33 +32,23 @@ class ErrorHandler(appender: Log2esAppender[_]) extends Actor with ActorLogging 
         super.postStop()
     }
 
-    private[this] def handle(failure: CantSendEvent) = failure.message match {
-        case e: ILoggingEvent => if (retryOrDiscard(e)) {
+    protected def handle(failure: CantSendEvent) = failure.message match {
+        case e: AnyRef => if (retryOrDiscard(e)) {
             cantSend -= 1
         }
-        case _ => appender.addError(failure.message.toString)
+        case _ => cantHandle(failure.message)
     }
 
-    private[this] def handle(deadLetter: DeadLetter) = deadLetter.message match {
-        case e: ILoggingEvent => if (retryOrDiscard(e)) {
+    protected def handle(deadLetter: DeadLetter) = deadLetter.message match {
+        case e: AnyRef => if (retryOrDiscard(e)) {
             deadLetters -= 1
         }
         case _ => log.debug(s"ignored deadletter message: ${deadLetter.message} sent from ${deadLetter.sender} to ${deadLetter.recipient}")
     }
 
-    private[this] def retryOrDiscard(message: ILoggingEvent): Boolean = {
-        appender.isDiscardable(message) match {
-            case true => log.warning(s"dropped discardable event: $message"); false
-            case false => {
-                val event = RetryLoggingEvent(message)
+    protected def cantHandle(message: AnyRef): Unit = {}
 
-                event.limitReached match {
-                    case true => log.error(s"dropped non-discardable event: $event"); false
-                    case false => appender.doAppend(event); true
-                }
-            }
-        }
-    }
+    protected def retryOrDiscard(message: AnyRef): Boolean = false
 
     def receive = {
         case f: CantSendEvent => {
@@ -78,8 +66,6 @@ class ErrorHandler(appender: Log2esAppender[_]) extends Actor with ActorLogging 
 
         case ElasticsearchError(e: Throwable) => {
             log.error(s"${e.getMessage}", e)
-
-            appender.addError(s"${e.getMessage}", e)
         }
 
         case message: FlushQueue => log.debug("ignore flush messages because there's no queue to flush")
@@ -89,7 +75,7 @@ class ErrorHandler(appender: Log2esAppender[_]) extends Actor with ActorLogging 
         case x => handleUnhandledMessage(x)
     }
 
-    private def handleUnhandledMessage(message: UnhandledMessage): Unit = {
+    protected def handleUnhandledMessage(message: UnhandledMessage): Unit = {
         if (!ignorable.contains(message.message.getClass)) {
             errors += 1
 
@@ -97,70 +83,11 @@ class ErrorHandler(appender: Log2esAppender[_]) extends Actor with ActorLogging 
         }
     }
 
-    private def handleUnhandledMessage(message: Any): Unit = {
+    protected def handleUnhandledMessage(message: Any): Unit = {
         if (!ignorable.contains(message.getClass)) {
             errors += 1
 
             log.warning(s"unhandled message: $message sent from ${sender.path}")
         }
     }
-}
-
-protected object RetryLoggingEvent {
-    /**
-     * wraps a given ILoggingEvent with a RetryLoggingEvent or increments
-     * the RetryLoggingEvent counter when a RetryLoggingEvent is given.
-     */
-    def retry(e: ILoggingEvent): ILoggingEvent = e match {
-        case event: RetryLoggingEvent => {
-            event.incrementCounter()
-            event
-        }
-
-        case _ => RetryLoggingEvent(e)
-    }
-}
-
-/**
- * A RetryLoggingEvent wraps an existing ILoggingEvent and keeps track of
- * number of retries.
- */
-protected case class RetryLoggingEvent(e: ILoggingEvent,
-                                       maxRetries: Int = Log2esContext.configuration.retryCount) extends ILoggingEvent {
-    private[this] lazy val counter = new AtomicInteger(1)
-
-    def incrementCounter(): Int = counter.incrementAndGet()
-
-    def limitReached: Boolean = counter.get() >= maxRetries
-
-    def prepareForDeferredProcessing() = e.prepareForDeferredProcessing()
-
-    def getThreadName = e.getThreadName
-
-    def getLevel = e.getLevel
-
-    def getMessage = e.getMessage
-
-    def getArgumentArray = e.getArgumentArray
-
-    def getFormattedMessage = e.getFormattedMessage
-
-    def getLoggerName = e.getLoggerName
-
-    def getLoggerContextVO = e.getLoggerContextVO
-
-    def getThrowableProxy = e.getThrowableProxy
-
-    def getCallerData = e.getCallerData
-
-    def hasCallerData = e.hasCallerData
-
-    def getMarker = e.getMarker
-
-    def getMDCPropertyMap = e.getMDCPropertyMap
-
-    @Deprecated
-    def getMdc = e.getMdc
-
-    def getTimeStamp = e.getTimeStamp
 }

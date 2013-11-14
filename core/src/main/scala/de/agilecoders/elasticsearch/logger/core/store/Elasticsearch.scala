@@ -2,7 +2,6 @@ package de.agilecoders.elasticsearch.logger.core.store
 
 import akka.util.Timeout
 import de.agilecoders.elasticsearch.logger.core.conf.Configuration
-import de.agilecoders.elasticsearch.logger.core.{ElasticsearchError, Log2esContext}
 import java.util.concurrent.TimeUnit
 import org.elasticsearch.action.bulk.BulkResponse
 import org.elasticsearch.action.index.IndexRequest
@@ -13,49 +12,56 @@ import org.elasticsearch.common.transport.InetSocketTransportAddress
 import org.elasticsearch.common.xcontent.XContentBuilder
 import scala.io.Source
 import scalastic.elasticsearch.{ClientIndexer, Indexer}
-import org.elasticsearch.transport.TransportRequest
+import com.twitter.util.Duration
 
 /**
  * TODO miha: document class purpose
  *
+ * TODO miha: refactor and cleanup this file
+ *
  * @author miha
  */
-object Elasticsearch extends StoreInitializer[BufferedStore[XContentBuilder, IndexRequest]] {
-    private[this] lazy val c: Configuration = Log2esContext.configuration
+object Elasticsearch {
+    private[this] var configuration: Option[Configuration] = None
     private[this] lazy val _client: Indexer = {
-        val indexer: Indexer = new ClientIndexer(_transportClient)
-        indexer.start
+        configuration match {
+            case Some(c: Configuration) => {
+                val indexer: Indexer = new ClientIndexer(newTransportClient(c))
+                indexer.start
 
-        indexer.waitForNodes()
-        indexer.waitTillActive()
+                indexer.waitForNodes()
+                indexer.waitTillActive()
 
-        import org.elasticsearch.index.query.QueryBuilders._
-        val count = try {
-            indexer.count(Seq(c.indexName), Seq(c.typeName), termQuery("_type", c.typeName)).getCount
-        } catch {
-            case _: Throwable => 0
-        }
-
-        if (count <= 0) {
-            try {
-                indexer.createIndex(c.indexName)
-            } catch {
-                case e: Throwable => Log2esContext.system.eventStream.publish(ElasticsearchError(e))
-            }
-
-            if (c.initializeMapping) {
-                try {
-                    indexer.putMapping(c.indexName, c.typeName, mapping)
+                import org.elasticsearch.index.query.QueryBuilders._
+                val count = try {
+                    indexer.count(Seq(c.indexName), Seq(c.typeName), termQuery("_type", c.typeName)).getCount
                 } catch {
-                    case e: Throwable => Log2esContext.system.eventStream.publish(ElasticsearchError(e))
+                    case _: Throwable => 0
                 }
-            }
-        }
 
-        indexer
+                if (count <= 0) {
+                    try {
+                        indexer.createIndex(c.indexName)
+                    } catch {
+                        case e: Throwable => // TODO
+                    }
+
+                    if (c.initializeMapping) {
+                        try {
+                            indexer.putMapping(c.indexName, c.typeName, mapping)
+                        } catch {
+                            case e: Throwable => // TODO
+                        }
+                    }
+                }
+
+                indexer
+            }
+            case _ => throw new IllegalStateException()
+        }
     }
 
-    private[this] lazy val _transportClient: TransportClient = {
+    private[this] def newTransportClient(c: Configuration): TransportClient = {
         val settings = ImmutableSettings.settingsBuilder()
                        .put("node.data", false)
                        .put("node.client", true)
@@ -76,11 +82,11 @@ object Elasticsearch extends StoreInitializer[BufferedStore[XContentBuilder, Ind
     private[this] lazy val mapping: String = Source.fromURL(getClass.getResource("/mapping.json")).getLines()
                                              .mkString("\n")
 
-    def connect(): Boolean = _transportClient.connectedNodes().size() > 0
+    def newClient(configuration: Configuration): BufferedStore = {
+        this.configuration = Some(configuration)
 
-    def disconnect(): Unit = _client.stop()
-
-    def newClient[DataT, RequestT <: TransportRequest](configuration:Configuration): BufferedStore[DataT, RequestT] = Elasticsearch(_client, configuration)
+        Elasticsearch(_client, configuration)
+    }
 }
 
 
@@ -91,13 +97,24 @@ object Elasticsearch extends StoreInitializer[BufferedStore[XContentBuilder, Ind
  *
  * @author miha
  */
-case class Elasticsearch[DataT, RequestT <: TransportRequest](client: Indexer, configuration:Configuration) extends BufferedStore[DataT, RequestT] {
-    private[this] lazy val queue = scala.collection.mutable.Queue[TransportRequest]()
+case class Elasticsearch(client: Indexer, configuration: Configuration) extends BufferedStore {
+    private[this] lazy val queue = scala.collection.mutable.Queue[IndexRequest]()
     private[this] lazy val responses = scala.collection.mutable.ListBuffer[FutureResponse]()
+    private[this] lazy val ttl:Long = {
+        if(configuration.ttl > 0) {
+            Duration.apply(configuration.ttl, TimeUnit.DAYS).inMilliseconds
+        } else {
+            0
+        }
+    }
 
-    override def newEntry(data: DataT): RequestT = {
+    override def newEntry(data: XContentBuilder): IndexRequest = {
         val index = new IndexRequest(configuration.indexName, configuration.typeName)
         index.source(data)
+
+        if (ttl > 0) {
+            index.ttl(ttl)
+        }
 
         queue += index
 
@@ -111,9 +128,11 @@ case class Elasticsearch[DataT, RequestT <: TransportRequest](client: Indexer, c
      * @param notifier the callback
      * @return new future response
      */
-    private[this] def sendInternal(q: Iterable[TransportRequest], notifier: Notifier[RequestT]): FutureResponse = {
+    private[this] def sendInternal(q: Iterable[IndexRequest], notifier: Notifier[IndexRequest]): FutureResponse = {
         val response = client.bulk_send(q)
-        val futureResponse: FutureResponse = BulkFutureResponse(response)
+        val futureResponse: FutureResponse = new BulkFutureResponse(response) {
+            protected val timeout = configuration.shutdownAwaitTimeout
+        }
 
         response.addListener(new ActionListener[BulkResponse] {
             def onFailure(e: Throwable) = {
@@ -140,7 +159,7 @@ case class Elasticsearch[DataT, RequestT <: TransportRequest](client: Indexer, c
         responses.clear()
     }
 
-    override def send(notifier: Notifier[RequestT]) = {
+    override def send(notifier: Notifier[IndexRequest]) = {
         val q = queue
 
         if (q.size > 0) {
@@ -154,8 +173,8 @@ case class Elasticsearch[DataT, RequestT <: TransportRequest](client: Indexer, c
     override def size = queue.size
 
     override def shutdown() {
-        send(new Notifier[RequestT] {
-            def onFailure(e: Throwable, q: Iterable[RequestT]) = queue.clear()
+        send(new Notifier[IndexRequest] {
+            def onFailure(e: Throwable, q: Iterable[IndexRequest]) = queue.clear()
 
             def onSuccess() = queue.clear()
         })
@@ -167,7 +186,7 @@ case class Elasticsearch[DataT, RequestT <: TransportRequest](client: Indexer, c
 /**
  * a special FutureResponse that wraps a ListenableActionFuture.
  */
-protected[store] case class BulkFutureResponse(response: ListenableActionFuture[BulkResponse]) extends FutureResponse {
+protected[store] abstract class BulkFutureResponse(response: ListenableActionFuture[BulkResponse]) extends FutureResponse {
 
     override def await(timeout: Timeout) = {
         if (!response.isDone && !response.isCancelled) {

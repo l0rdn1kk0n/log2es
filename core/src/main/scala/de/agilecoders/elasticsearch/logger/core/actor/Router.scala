@@ -4,9 +4,8 @@ import akka.actor._
 import akka.routing.Broadcast
 import de.agilecoders.elasticsearch.logger.core._
 import de.agilecoders.elasticsearch.logger.core.actor.Reaper.WatchMe
-import de.agilecoders.elasticsearch.logger.core.messages.Initialize
-import de.agilecoders.elasticsearch.logger.logger.{FlushQueue, Alive, CantSendEvent}
-import de.agilecoders.logback.elasticsearch.conf.DependencyHolder
+import de.agilecoders.elasticsearch.logger.core.messages.{FlushQueue, Alive, CantSendEvent, Initialize}
+import de.agilecoders.elasticsearch.logger.core.messages.Action._
 
 /**
  * Router actor companion object
@@ -14,10 +13,8 @@ import de.agilecoders.logback.elasticsearch.conf.DependencyHolder
 object Router {
     /**
      * creates the actor props for the Router actor.
-     *
-     * @param appender the logback appender instance
      */
-    def props(appender: Log2esAppender[_]) = Props(classOf[Router], appender)
+    def props() = Props(classOf[Router])
 }
 
 /**
@@ -26,10 +23,10 @@ object Router {
  * @author miha
  * @param appender the logback appender instance
  */
-class Router(appender: Log2esAppender[_]) extends Actor with ActorLogging with DefaultSupervisor with DependencyHolder with ContextAware {
-    private[this] val worker: ActorRef = newWorker()
-    private[this] val errorHandler: ActorRef = newErrorHandler(appender)
-    private[this] lazy val mapper = dependencies.mapper
+class Router() extends Actor with ActorLogging with DefaultSupervisor with ContextAware {
+    private[this] lazy val worker: ActorRef = newWorker()
+    private[this] lazy val errorHandler: ActorRef = newErrorHandler()
+    private[this] lazy val mapper = log2es.dependencies.newMapper()
 
     /**
      * router is inactive by default
@@ -40,6 +37,15 @@ class Router(appender: Log2esAppender[_]) extends Actor with ActorLogging with D
      * receive handler when actor is dead/inactive
      */
     private[this] def inactive: Actor.Receive = {
+        case i:Initialize => {
+            log2es = i.context
+
+            worker ! Broadcast(Initialize(log2es))
+            errorHandler ! Initialize(log2es)
+
+            context.become(active)
+        }
+
         case _ => sender ! imDead
     }
 
@@ -47,8 +53,6 @@ class Router(appender: Log2esAppender[_]) extends Actor with ActorLogging with D
      * receive handler when actor is active
      */
     private[this] def active: Actor.Receive = {
-        case Initialize(c: Log2esContext) => log2es = c
-
         case e: CantSendEvent => worker ! e.message
         case a: Alive => sender ! imAlive
 
@@ -89,7 +93,6 @@ class Router(appender: Log2esAppender[_]) extends Actor with ActorLogging with D
         super.preStart()
 
         context.system.eventStream.publish(WatchMe(self))
-        context.become(active)
     }
 
     /**
@@ -108,12 +111,12 @@ class Router(appender: Log2esAppender[_]) extends Actor with ActorLogging with D
     /**
      * creates a new worker actor reference
      */
-    protected def newWorker(): ActorRef = dependencies.newWorker(context)
+    protected def newWorker(): ActorRef = context.actorOf(Worker.props(log2es.dependencies.configuration.noOfWorkers), Names.Worker)
 
     /**
      * creates a new error handler actor reference
      *
      * @param appender the logback appender
      */
-    protected def newErrorHandler(appender: Log2esAppender[_]): ActorRef = dependencies.newErrorHandler(context, appender)
+    protected def newErrorHandler(): ActorRef = context.actorOf(ErrorHandler.props(), Names.ErrorHandler)
 }

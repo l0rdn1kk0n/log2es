@@ -2,16 +2,16 @@ package de.agilecoders.elasticsearch.logger.logback.actor
 
 import akka.actor._
 import ch.qos.logback.classic.spi.ILoggingEvent
+import de.agilecoders.elasticsearch.logger.core.Log2esContext
 import de.agilecoders.elasticsearch.logger.core.actor.ContextAware
-import de.agilecoders.elasticsearch.logger.core.messages.Initialize
-import de.agilecoders.elasticsearch.logger.core.{Log2esContext, Log2esAppender}
-import de.agilecoders.elasticsearch.logger.logger.{ElasticsearchError, CantSendEvent, FlushQueue}
+import de.agilecoders.elasticsearch.logger.core.messages._
+import de.agilecoders.elasticsearch.logger.logback.ActorBasedElasticSearchLogbackAppender
 import java.util.concurrent.atomic.AtomicInteger
 
 
 object ErrorHandler {
 
-    def props(appender: Log2esAppender[ILoggingEvent]): Props = Props(classOf[ErrorHandler], appender)
+    def props(appender: ActorBasedElasticSearchLogbackAppender): Props = Props(classOf[ErrorHandler], appender)
 }
 
 /**
@@ -19,7 +19,7 @@ object ErrorHandler {
  *
  * @author miha
  */
-class ErrorHandler(appender: Log2esAppender[ILoggingEvent]) extends Actor with ActorLogging with ContextAware {
+class ErrorHandler(appender: ActorBasedElasticSearchLogbackAppender) extends Actor with ActorLogging with ContextAware {
     private[this] val ignorable = Seq(classOf[FlushQueue])
     private[this] var errors = 0
     private[this] var deadLetters = 0
@@ -66,9 +66,11 @@ class ErrorHandler(appender: Log2esAppender[ILoggingEvent]) extends Actor with A
     }
 
     def receive = {
-        case Initialize(c: Log2esContext) => {
-            log2es = c
-            RetryLoggingEvent.retryCount = c.dependencies.configuration.retryCount
+        case i:Initialize => {
+            log2es = i.context
+            RetryLoggingEvent.retryCount = log2es.dependencies.configuration.retryCount
+
+            log.warning("initialized: " + self.path)
         }
 
         case f: CantSendEvent => {

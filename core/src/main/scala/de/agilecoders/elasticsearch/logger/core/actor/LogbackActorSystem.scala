@@ -10,8 +10,8 @@ import de.agilecoders.elasticsearch.logger.core.conf.Configuration
  * @author miha
  */
 case class LogbackActorSystem(configuration: Configuration) extends Lifecycle[ActorSystem] {
-    private lazy val instance: ActorSystem = ActorSystem.create(configuration.name, configuration.file)
-    private var _reaper: ActorRef = null
+    private[this] var _reaper: ActorRef = null
+    lazy val instance: ActorSystem = ActorSystem.create(configuration.name, configuration.file)
 
     /**
      * starts up the actor system

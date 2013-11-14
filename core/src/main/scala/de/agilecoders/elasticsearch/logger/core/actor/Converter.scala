@@ -1,10 +1,9 @@
 package de.agilecoders.elasticsearch.logger.core.actor
 
-import akka.actor.{Props, Actor}
+import akka.actor.{ActorLogging, Props, Actor}
 import akka.routing.RoundRobinRouter
 import com.twitter.ostrich.stats.Stats
-import de.agilecoders.elasticsearch.logger.logger.FlushQueue
-import de.agilecoders.logback.elasticsearch.conf.DependencyHolder
+import de.agilecoders.elasticsearch.logger.core.messages.FlushQueue
 
 /**
  * Converts an `ILoggingEvent` into a map
@@ -15,7 +14,7 @@ object Converter {
     def props() = Props(classOf[Converter]).withRouter(RoundRobinRouter(nrOfInstances = 10))
 }
 
-case class Converter() extends Actor with DefaultSupervisor with DefaultMessageHandler {
+case class Converter() extends Actor with DefaultSupervisor with ActorLogging with DefaultMessageHandler {
     private[this] lazy val mapper = newMapper()
 
     /**
@@ -44,7 +43,7 @@ case class Converter() extends Actor with DefaultSupervisor with DefaultMessageH
     }
 
     /**
-     * loads the mapper instance
+     * creates a new mapper instance
      */
-    protected def newMapper() = log2es.dependencies.mapper
+    protected def newMapper() = log2es.dependencies.newMapper()
 }

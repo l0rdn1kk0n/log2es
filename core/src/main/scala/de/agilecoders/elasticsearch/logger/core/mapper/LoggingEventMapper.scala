@@ -7,7 +7,7 @@ package de.agilecoders.elasticsearch.logger.core.mapper
  *
  * @author miha
  */
-trait LoggingEventMapper[T <: AnyRef] {
+trait LoggingEventMapper {
 
     /**
      * transforms an `event` to a `data` structure according to the
@@ -16,7 +16,7 @@ trait LoggingEventMapper[T <: AnyRef] {
      * @param event the logging event to transform
      * @return logging event as map
      */
-    def map(event: AnyRef): T
+    def map(event: AnyRef): AnyRef
 
     /**
      * @param event the logging event to check for support

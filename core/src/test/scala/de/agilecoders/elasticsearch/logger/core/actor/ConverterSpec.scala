@@ -1,11 +1,11 @@
-package de.agilecoders.elasticsearch.logger.core.actor
+package de.agilecoders.elasticsearch.logger.logback.actor
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-import de.agilecoders.logback.elasticsearch.actor.Converter
 import org.elasticsearch.common.xcontent.XContentBuilder
 import org.scalatest.{Matchers, WordSpecLike}
-import de.agilecoders.elasticsearch.logger.core.Factory
+import ch.qos.logback.classic.spi.LoggingEvent
+import de.agilecoders.elasticsearch.logger.core.actor.Converter
 
 /**
  * Tests the converter actor
@@ -21,7 +21,7 @@ Matchers {
         "convert an event and forward it to sender " in {
             val actor = _system.actorOf(Converter.props(), "converter")
 
-            actor.tell(Factory.newEvent(), testActor)
+            actor.tell(new LoggingEvent(), testActor)
 
             expectMsgClass(classOf[XContentBuilder])
         }

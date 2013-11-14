@@ -1,6 +1,5 @@
 package de.agilecoders.elasticsearch.logger.core
 
-
 /**
  * TODO
  */

@@ -18,7 +18,7 @@ import scala.collection.mutable
  * TODO miha
  */
 @SerialVersionUID(1687691786811587371L)
-case class LoggingEventToXContentMapper(configuration: Configuration) extends LoggingEventMapper[XContentBuilder] {
+case class LoggingEventToXContentMapper(configuration: Configuration) extends LoggingEventMapper {
     private[this] val formatter: DateTimeFormatter = ISODateTimeFormat.dateTime()
 
     /**

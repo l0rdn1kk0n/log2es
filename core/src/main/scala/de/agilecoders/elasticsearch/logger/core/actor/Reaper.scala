@@ -2,9 +2,9 @@ package de.agilecoders.elasticsearch.logger.core.actor
 
 import akka.actor.{ActorLogging, Actor, ActorRef, Terminated}
 import de.agilecoders.elasticsearch.logger.core.Log2esContext
-import scala.collection.mutable.ArrayBuffer
-import de.agilecoders.elasticsearch.logger.core.messages.Initialize
 import de.agilecoders.elasticsearch.logger.core.actor.Reaper.AllSoulsReaped
+import de.agilecoders.elasticsearch.logger.core.messages.Initialize
+import scala.collection.mutable.ArrayBuffer
 
 object Reaper {
 
@@ -26,15 +26,12 @@ object Reaper {
  * The reaper is responsible for watching all actors and if all of them are dead
  * shutting down the ActorSystem.
  */
-abstract class Reaper extends Actor with ActorLogging {
+abstract class Reaper extends Actor with ActorLogging with ContextAware {
 
     import Reaper._
 
     // Keep track of what we're watching
     private[this] lazy val watched = ArrayBuffer.empty[ActorRef]
-
-    // holds the log2es context
-    protected var log2es:Log2esContext[_,_,_] = null
 
     /**
      * Derivations need to implement this method. It's the hook that's called when everything is dead
@@ -68,6 +65,9 @@ abstract class Reaper extends Actor with ActorLogging {
     }
 }
 
+/**
+ * special reaper that stops the log2es context
+ */
 case class ShutdownReaper() extends Reaper {
     /**
      * shutdown log2es context

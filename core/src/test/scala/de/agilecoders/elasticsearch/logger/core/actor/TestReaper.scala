@@ -1,7 +1,7 @@
-package de.agilecoders.elasticsearch.logger.core.actor
+package de.agilecoders.elasticsearch.logger.logback.actor
 
 import akka.actor.ActorRef
-import de.agilecoders.logback.elasticsearch.actor.Reaper
+import de.agilecoders.elasticsearch.logger.core.actor.Reaper
 
 // Our test reaper.  Sends the snooper a message when all
 // the souls have been reaped

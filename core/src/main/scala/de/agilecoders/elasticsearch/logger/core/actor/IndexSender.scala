@@ -3,8 +3,8 @@ package de.agilecoders.elasticsearch.logger.core.actor
 import akka.actor._
 import com.twitter.ostrich.stats.Stats
 import de.agilecoders.elasticsearch.logger.core.conf.Configuration
-import de.agilecoders.elasticsearch.logger.core.store.{Notifier, BufferedStore}
-import de.agilecoders.elasticsearch.logger.logger.{FlushQueue, Converted}
+import de.agilecoders.elasticsearch.logger.core.messages.{FlushQueue, Converted}
+import de.agilecoders.elasticsearch.logger.core.store.Notifier
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.common.xcontent.XContentBuilder
 
@@ -108,7 +108,7 @@ class IndexSender() extends Actor with RestartingSupervisor with ActorLogging wi
     /**
      * creates a new store client instance
      */
-    protected def newStoreClient() = log2es.dependencies.newStoreClient().asInstanceOf[BufferedStore[XContentBuilder, IndexRequest]]
+    protected def newStoreClient() = log2es.dependencies.newStoreClient()
 
     /**
      * loads the configuration instance

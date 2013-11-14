@@ -2,23 +2,30 @@ package de.agilecoders.elasticsearch.logger.core.actor
 
 import akka.actor._
 import akka.routing.{RoundRobinRouter, Broadcast}
+import de.agilecoders.elasticsearch.logger.core.Log2esContext
 import de.agilecoders.elasticsearch.logger.core.actor.Reaper.WatchMe
 import de.agilecoders.elasticsearch.logger.core.conf.Configuration
-import de.agilecoders.elasticsearch.logger.logger._
-import de.agilecoders.logback.elasticsearch.conf.DependencyHolder
+import de.agilecoders.elasticsearch.logger.core.messages.Action._
+import de.agilecoders.elasticsearch.logger.core.messages.{Initialize, FlushQueue, Converted}
 import java.util.concurrent.TimeUnit
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.Random
+import com.twitter.ostrich.stats.Stats
 
-object Worker extends DependencyHolder {
-    private[this] lazy val configuration = dependencies.configuration
+object Worker {
 
     /**
      * create actor `Props` for `Worker` actor
      *
      * @return new `Props` instance
      */
-    def props() = Props(classOf[Worker]).withRouter(RoundRobinRouter(nrOfInstances = configuration.noOfWorkers))
+    def props(noOfWorkers: Int) = {
+        Props(classOf[Worker])
+        .withRouter(RoundRobinRouter(nrOfInstances = noOfWorkers))
+        .withMailbox("unbounded")
+        .withDispatcher("log2es-dispatcher")
+    }
 
     /**
      * create and start a new scheduler that sends `FlushQueue` messages to given `Worker` actor.
@@ -27,7 +34,7 @@ object Worker extends DependencyHolder {
      * @param configuration the configuration
      * @return new scheduler
      */
-    protected[Worker] def newScheduler(context: ActorContext, configuration: Configuration): Cancellable = {
+    protected[Worker] def newScheduler(context: ActorContext, configuration: Configuration)(implicit executor: ExecutionContext): Cancellable = {
         val startDelay = Duration(100 + new Random().nextInt(configuration.flushInterval), TimeUnit.MILLISECONDS)
         val interval = Duration(configuration.flushInterval, TimeUnit.MILLISECONDS)
 
@@ -47,7 +54,7 @@ class Worker() extends Actor with DefaultSupervisor with ActorLogging with Defau
     private[this] lazy val indexSender: ActorRef = newSender()
     private[this] lazy val scheduler: Cancellable = newScheduler(configuration)
 
-    override protected def onMessage = {
+    override protected def onMessage = Stats.time("log2es.worker.onMessageTime") {
         case Converted(message: AnyRef) => indexSender ! message
 
         case event: AnyRef => converter.tell(event, indexSender)
@@ -57,6 +64,11 @@ class Worker() extends Actor with DefaultSupervisor with ActorLogging with Defau
         log.debug(s"received flush queue action from $sender")
 
         flush()
+    }
+
+    override protected def onInitialized(log2es: Log2esContext) {
+        converter ! Broadcast(Initialize(log2es))
+        indexSender ! Broadcast(Initialize(log2es))
     }
 
     /**
@@ -111,16 +123,20 @@ class Worker() extends Actor with DefaultSupervisor with ActorLogging with Defau
     /**
      * creates a new converter actor reference
      */
-    protected def newConverter(): ActorRef = log2es.dependencies.newConverter(context)
+    protected def newConverter(): ActorRef = context.actorOf(Converter.props(), Names.Converter)
 
     /**
      * creates a new sender actor reference
      */
-    protected def newSender(): ActorRef = log2es.dependencies.newSender(context)
+    protected def newSender(): ActorRef = context.actorOf(IndexSender.props(), Names.Sender)
 
     /**
      * creates a new scheduler instance
      */
-    protected def newScheduler(configuration: Configuration): Cancellable = Worker.newScheduler(context, configuration)
+    protected def newScheduler(configuration: Configuration): Cancellable = {
+        implicit val executor = context.system.dispatcher
+
+        Worker.newScheduler(context, configuration)
+    }
 
 }

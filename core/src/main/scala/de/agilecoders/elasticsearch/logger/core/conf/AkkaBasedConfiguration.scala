@@ -1,7 +1,6 @@
 package de.agilecoders.elasticsearch.logger.core.conf
 
 import akka.util.Timeout
-import ch.qos.logback.classic.Level
 import com.typesafe.config.{ConfigFactory, Config}
 import java.io.IOException
 import scala.concurrent.duration._
@@ -48,13 +47,16 @@ case class AkkaBasedConfiguration() extends Configuration {
      * @return buffered source of given path
      */
     private[this] def toPath(pathToConfig: String): Option[BufferedSource] = try {
-        Some(Source.fromURL(getClass.getResource(pathToConfig)))
+        val resource = getClass.getResource(pathToConfig)
+
+        Some(Source.fromURL(resource))
     } catch {
+        case e: RuntimeException => None
         case e: IOException => None
     }
 
     private[this] lazy val fields: java.util.List[String] = file.getStringList("configuration.fields")
-    
+
     lazy val file: Config = initializeConfigInstance()
 
     lazy val useAsyncHttp: Boolean = file.getBoolean("configuration.http.useAsyncHttp")
@@ -106,5 +108,7 @@ case class AkkaBasedConfiguration() extends Configuration {
     lazy val sniffHostnames: Boolean = file.getBoolean("configuration.sniffHostnames")
 
     lazy val clusterName: String = file.getString("configuration.clusterName")
+
+    lazy val ttl: Long = file.getLong("configuration.ttl")
 
 }

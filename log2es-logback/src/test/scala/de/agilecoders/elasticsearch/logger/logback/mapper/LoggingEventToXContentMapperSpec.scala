@@ -1,10 +1,12 @@
-package de.agilecoders.elasticsearch.logger.core.mapper
+package de.agilecoders.elasticsearch.logger.logback.mapper
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.spi.{ILoggingEvent, LoggingEvent}
+import de.agilecoders.elasticsearch.logger.core.conf.CustomizableConfiguration
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.BasicMarkerFactory
 import scala.unchecked
 import scala.util.parsing.json.JSON
-import de.agilecoders.elasticsearch.logger.logback.mapper.LoggingEventToXContentMapper
 
 /**
  * Tests the `LoggingEventToXContentMapperSpec`

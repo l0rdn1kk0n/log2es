@@ -1,12 +1,12 @@
-package de.agilecoders.elasticsearch.logger.core.actor
+package de.agilecoders.elasticsearch.logger.logback.actor
 
 import akka.actor.{ActorRef, PoisonPill, Props, ActorSystem}
 import akka.routing.Broadcast
 import akka.testkit.{ImplicitSender, TestKit}
-import de.agilecoders.logback.elasticsearch._
-import de.agilecoders.logback.elasticsearch.actor.Reaper.WatchMe
-import de.agilecoders.logback.elasticsearch.actor.Router
+import de.agilecoders.elasticsearch.logger.core.actor.Reaper.WatchMe
+import de.agilecoders.elasticsearch.logger.core.messages.Action._
 import org.scalatest.{Matchers, WordSpecLike}
+import de.agilecoders.elasticsearch.logger.core.actor.Router
 
 /**
  * Tests the converter actor
@@ -48,10 +48,10 @@ class RouterSpec(_system: ActorSystem) extends TestKit(_system) with ImplicitSen
     }
 
     private def newRouter(): ActorRef = {
-        _system.actorOf(Props.apply(new Router(new ActorBasedElasticSearchLogbackAppender) {
+        _system.actorOf(Props.apply(new Router() {
             override protected def newWorker() = testActor
 
-            override protected def newErrorHandler(appender: ElasticSearchLogbackAppender) = testActor
+            override protected def newErrorHandler() = testActor
         }))
     }
 }

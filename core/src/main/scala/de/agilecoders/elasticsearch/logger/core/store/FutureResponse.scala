@@ -1,13 +1,12 @@
 package de.agilecoders.elasticsearch.logger.core.store
 
 import akka.util.Timeout
-import de.agilecoders.elasticsearch.logger.Log2esContext
 
 /**
  * A FutureResponse represents a response of a buffered store call.
  */
 trait FutureResponse {
-    private lazy val timeout = Log2esContext.configuration.shutdownAwaitTimeout
+    protected val timeout: Timeout
 
     /**
      * blocks current thread until response is arrived.

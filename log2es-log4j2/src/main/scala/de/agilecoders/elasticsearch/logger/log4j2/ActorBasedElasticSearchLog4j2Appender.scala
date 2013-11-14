@@ -1,15 +1,12 @@
 package de.agilecoders.elasticsearch.logger.log4j2
 
-import akka.actor.ActorContext
 import de.agilecoders.elasticsearch.logger.core.Log2esContext
+import de.agilecoders.elasticsearch.logger.core.actor.{Names, Router}
 import de.agilecoders.elasticsearch.logger.core.conf.Dependencies
-import de.agilecoders.elasticsearch.logger.log4j2.ElasticSearchLog4j2Appender
 import de.agilecoders.elasticsearch.logger.log4j2.mapper.LoggingEventToXContentMapper
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.core.LogEvent
 import org.apache.logging.log4j.core.appender.AbstractAppender
-import org.elasticsearch.action.index.IndexRequest
-import org.elasticsearch.common.xcontent.XContentBuilder
 
 
 /**
@@ -24,13 +21,11 @@ import org.elasticsearch.common.xcontent.XContentBuilder
  */
 class ActorBasedElasticSearchLog4j2Appender extends AbstractAppender("log2es", null, null) with ElasticSearchLog4j2Appender {
     val self = this
-    protected[log4j] lazy val context = Log2esContext.create(new Dependencies[LogEvent, XContentBuilder, IndexRequest] {
-        override protected def newMapper() = LoggingEventToXContentMapper(configuration)
-
-        override def newErrorHandler(context: ActorContext) = actorCreator.newErrorHandler(context, self)
+    protected[log4j2] lazy val log2esContext = Log2esContext.create(new Dependencies {
+        override def newMapper() = LoggingEventToXContentMapper(configuration)
     })
-    protected[log4j] lazy val router = context.dependencies.newRouter(this)
-    protected[log4j] lazy val discardableLevel = Level.toLevel(context.dependencies.configuration.discardable).intLevel()
+    protected[log4j2] lazy val router = log2esContext.dependencies.actorSystem.actorOf(Router.props(), Names.Router)
+    protected[log4j2] lazy val discardableLevel = Level.toLevel(log2esContext.dependencies.configuration.discardable).intLevel()
 
     /**
      * sends given logging event to actor system
@@ -54,7 +49,7 @@ class ActorBasedElasticSearchLog4j2Appender extends AbstractAppender("log2es", n
     override def stop() {
         super.stop()
 
-        context.shutdownAndAwaitTermination()
+        log2esContext.shutdownAndAwaitTermination()
     }
 
     def addInfo(msg: String) = ???
@@ -68,4 +63,12 @@ class ActorBasedElasticSearchLog4j2Appender extends AbstractAppender("log2es", n
     def addError(msg: String) = ???
 
     def addError(msg: String, ex: Throwable) = ???
+
+    /**
+     * This is where an appender accomplishes its work. Note that the argument
+     * is of type Object.
+     *
+     * @param event logging event
+     */
+    def doAppend(event: LogEvent) = append(event)
 }

@@ -9,7 +9,7 @@ import com.typesafe.config.Config
 object Configuration {
     val name: String = "log2es"
 
-    lazy val instance = AkkaBasedConfiguration(name)
+    lazy val instance = AkkaBasedConfiguration()
 }
 
 /**
@@ -68,5 +68,7 @@ trait Configuration {
     def sniffHostnames: Boolean
 
     def clusterName: String
+
+    def ttl: Long
 
 }

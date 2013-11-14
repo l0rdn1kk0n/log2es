@@ -2,8 +2,6 @@ package de.agilecoders.elasticsearch.logger.core
 
 import de.agilecoders.elasticsearch.logger.core.conf.Dependencies
 import de.agilecoders.elasticsearch.logger.core.messages.Initialize
-import de.agilecoders.elasticsearch.logger.core.store.Store
-import org.elasticsearch.transport.TransportRequest
 
 /**
  * holder class for common instances
@@ -15,7 +13,7 @@ object Log2esContext {
     /**
      * TODO
      */
-    def create[EventT, DataT, RequestT <: TransportRequest](dependencies: Dependencies[EventT, DataT, RequestT]): Log2esContext[EventT, DataT, RequestT] = {
+    def create(dependencies: Dependencies): Log2esContext = {
         val context = Log2esContext(dependencies)
 
         context
@@ -23,14 +21,13 @@ object Log2esContext {
 
 }
 
-case class Log2esContext[EventT, DataT, RequestT <: TransportRequest](dependencies: Dependencies[EventT, DataT, RequestT]) extends Lifecycle[Log2esContext[EventT, DataT, RequestT]] {
+case class Log2esContext(dependencies: Dependencies) extends Lifecycle[Log2esContext] {
     private[this] lazy val actorSystem = dependencies.actorSystem
 
     /**
      * starts the log2es context
      */
-    def start(): Log2esContext[EventT, DataT, RequestT] = {
-        Store.connect()
+    def start(): Log2esContext = {
         actorSystem.start()
 
         actorSystem.reaper ! Initialize(this)
@@ -43,7 +40,6 @@ case class Log2esContext[EventT, DataT, RequestT <: TransportRequest](dependenci
      */
     def stop() {
         dependencies.actorSystem.stop()
-        Store.disconnect()
     }
 
     /**

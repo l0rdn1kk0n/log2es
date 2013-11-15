@@ -5,13 +5,12 @@
     <parent>
         <groupId>de.agilecoders.elasticsearch.logger</groupId>
         <artifactId>log2es-parent</artifactId>
-        <version>0.1.0</version>
+        <version>0.2.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>log2es-logback</artifactId>
     <name>log2es-logback</name>
-    <version>0.1.0</version>
     <packaging>jar</packaging>
 
     <dependencies>

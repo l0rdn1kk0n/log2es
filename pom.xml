@@ -268,6 +268,60 @@
                     </configuration>
                 </plugin>
                 <plugin>
+                    <groupId>net.alchim31.maven</groupId>
+                    <artifactId>scala-maven-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <id>doc</id>
+                            <phase>generate-sources</phase>
+                            <goals>
+                                <goal>compile</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <checkMultipleScalaVersions>false</checkMultipleScalaVersions>
+                        <args>
+                            <arg>-P:genjavadoc:out=${project.build.directory}/genjavadoc</arg>
+                        </args>
+                        <compilerPlugins>
+                            <compilerPlugin>
+                                <groupId>com.typesafe.genjavadoc</groupId>
+                                <artifactId>genjavadoc-plugin_2.10.0</artifactId>
+                                <version>0.4</version>
+                            </compilerPlugin>
+                        </compilerPlugins>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>build-helper-maven-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <phase>generate-sources</phase>
+                            <goals>
+                                <goal>add-source</goal>
+                            </goals>
+                            <configuration>
+                                <sources>
+                                    <source>${project.build.directory}/genjavadoc</source>
+                                </sources>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>2.9</version>
+                    <configuration>
+                        <minmemory>64m</minmemory>
+                        <maxmemory>2g</maxmemory>
+                        <outputDirectory>${project.build.directory}</outputDirectory>
+                        <detectLinks>true</detectLinks>
+                    </configuration>
+                </plugin>
+                <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>versions-maven-plugin</artifactId>
                     <version>${versions-maven-plugin.version}</version>
@@ -322,4 +376,13 @@
             </roles>
         </developer>
     </developers>
+
+    <repositories>
+        <repository>
+            <id>typesafe</id>
+            <name>typesafe-releases</name>
+            <url>http://repo.typesafe.com/typesafe/maven-releases</url>
+        </repository>
+    </repositories>
+
 </project>

@@ -1,6 +1,7 @@
 ## log2es
 
-log2es is a [logback](http://logback.qos.ch) appender for [elasticsearch](http://elasticsearch.org) which is based on
+log2es is a [logback](http://logback.qos.ch), [log4j](http://logging.apache.org/log4j/1.2/) and
+[log4j2](http://logging.apache.org/log4j/2.x/) appender for [elasticsearch](http://elasticsearch.org) which is based on
  [Akka](http://akka.io) and [Jest](https://github.com/searchbox-io/Jest).
 The appender sends asynchronous non blocking bulk HTTP calls to a [elasticsearch](http://elasticsearch) cluster for
 each
@@ -9,21 +10,51 @@ CAUTION: there's no stable release version available yet, so please don't use it
 
 ### Installation
 
-You've to add the maven dependency first:
+You've to add the maven dependency first (please add only one of the following):
 
 ```xml
 <dependency>
     <groupId>de.agilecoders.logback</groupId>
-    <artifactId>log2es</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <artifactId>log2es-logback</artifactId>
+    <version>0.2.1</version>
+</dependency>
+<dependency>
+    <groupId>de.agilecoders.logback</groupId>
+    <artifactId>log2es-log4j</artifactId>
+    <version>0.2.1</version>
+</dependency>
+<dependency>
+    <groupId>de.agilecoders.logback</groupId>
+    <artifactId>log2es-log4j2</artifactId>
+    <version>0.2.1</version>
 </dependency>
 ```
 
-Now you can add the appender to your logback configuration:
+How to configure logback:
 
 ```xml
-<appender name="log2es" class="de.agilecoders.logback.elasticsearch.ActorBasedElasticSearchLogbackAppender">
+<appender name="log2es" class="de.agilecoders.elasticsearch.logger.logback.ActorBasedElasticSearchLogbackAppender">
 </appender>
+```
+
+How to configure log4j:
+
+```
+# Set root logger level to DEBUG and its only appender to ES.
+log4j.rootLogger=DEBUG, ES
+
+# ES is set to be a ActorBasedElasticSearchLog4jAppender.
+log4j.appender.ES=de.agilecoders.elasticsearch.logger.log4j.ActorBasedElasticSearchLog4jAppender
+```
+
+How to configure log4j2:
+
+```xml
+ <Appenders>
+    <!-- Async Loggers will auto-flush in batches, so switch off immediateFlush. -->
+    <ActorBasedElasticSearchLog4j2Appender name="log2es">
+    </ActorBasedElasticSearchLog4j2Appender>
+  </Appenders>
 ```
 
 ### Configuration

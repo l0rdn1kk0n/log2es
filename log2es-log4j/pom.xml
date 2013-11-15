@@ -5,7 +5,7 @@
     <parent>
         <groupId>de.agilecoders.elasticsearch.logger</groupId>
         <artifactId>log2es-parent</artifactId>
-        <version>0.2.0</version>
+        <version>0.2.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>log2es-log4j</artifactId>

@@ -284,6 +284,11 @@
                         <args>
                             <arg>-P:genjavadoc:out=${project.build.directory}/genjavadoc</arg>
                         </args>
+                        <jvmArgs>
+                            <jvmArg>-Xms256m</jvmArg>
+                            <jvmArg>-XX:MaxPermSize=1024m</jvmArg>
+                            <jvmArg>-Xmx1024m</jvmArg>
+                        </jvmArgs>
                         <compilerPlugins>
                             <compilerPlugin>
                                 <groupId>com.typesafe.genjavadoc</groupId>

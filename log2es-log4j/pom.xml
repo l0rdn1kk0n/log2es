@@ -9,6 +9,8 @@
     </parent>
 
     <artifactId>log2es-log4j</artifactId>
+    <name>log2es-log4j</name>
+    <packaging>jar</packaging>
 
     <dependencies>
         <dependency>

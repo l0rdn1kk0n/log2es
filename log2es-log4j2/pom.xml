@@ -10,6 +10,8 @@
     </parent>
 
     <artifactId>log2es-log4j2</artifactId>
+    <name>log2es-log4j2</name>
+    <packaging>jar</packaging>
 
     <properties>
         <org.apache.logging.log4j-version>2.0-beta9</org.apache.logging.log4j-version>

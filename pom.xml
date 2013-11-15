@@ -259,6 +259,7 @@
                         </execution>
                     </executions>
                     <configuration>
+                        <checkMultipleScalaVersions>false</checkMultipleScalaVersions>
                         <jvmArgs>
                             <jvmArg>-Xms256m</jvmArg>
                             <jvmArg>-XX:MaxPermSize=1024m</jvmArg>

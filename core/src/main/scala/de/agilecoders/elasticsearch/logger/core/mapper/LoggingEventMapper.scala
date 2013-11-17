@@ -1,9 +1,10 @@
 package de.agilecoders.elasticsearch.logger.core.mapper
 
+
 /**
- * Defines the interface of all `ILoggingEvent` to `Map`
- * transformer. This transformer is used to create a json representation
- * of `ILoggingEvent` that matches the elasticsearch mapping.
+ * Defines the interface of all `event` to elasticsearch `data`
+ * transformer. This transformer is used to create a data representation
+ * of `event` that matches the elasticsearch mapping.
  *
  * @author miha
  */

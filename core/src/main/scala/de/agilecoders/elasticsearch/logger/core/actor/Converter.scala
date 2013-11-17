@@ -14,6 +14,9 @@ object Converter {
     def props() = Props(classOf[Converter]).withRouter(RoundRobinRouter(nrOfInstances = 10))
 }
 
+/**
+ * TODO miha: converter is too slow, make him faster
+ */
 case class Converter() extends Actor with DefaultSupervisor with ActorLogging with DefaultMessageHandler {
     private[this] lazy val mapper = newMapper()
 

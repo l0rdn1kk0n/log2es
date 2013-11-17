@@ -1,18 +1,15 @@
 package de.agilecoders.elasticsearch.logger.core.store
 
-import akka.util.Timeout
+import com.twitter.util.Duration
 import de.agilecoders.elasticsearch.logger.core.conf.Configuration
 import java.util.concurrent.TimeUnit
+import org.elasticsearch.action.ActionListener
 import org.elasticsearch.action.bulk.BulkResponse
 import org.elasticsearch.action.index.IndexRequest
-import org.elasticsearch.action.{ListenableActionFuture, ActionListener}
-import org.elasticsearch.client.transport.TransportClient
-import org.elasticsearch.common.settings.ImmutableSettings
-import org.elasticsearch.common.transport.InetSocketTransportAddress
 import org.elasticsearch.common.xcontent.XContentBuilder
-import scala.io.Source
-import scalastic.elasticsearch.{ClientIndexer, Indexer}
-import com.twitter.util.Duration
+import scala.Some
+import scala.collection.mutable
+import scalastic.elasticsearch.Indexer
 
 /**
  * TODO miha: document class purpose
@@ -22,71 +19,37 @@ import com.twitter.util.Duration
  * @author miha
  */
 object Elasticsearch {
-    private[this] var configuration: Option[Configuration] = None
-    private[this] lazy val _client: Indexer = {
-        configuration match {
-            case Some(c: Configuration) => {
-                val indexer: Indexer = new ClientIndexer(newTransportClient(c))
-                indexer.start
+    protected[store] val MAX_TTL = 1000000
 
-                indexer.waitForNodes()
-                indexer.waitTillActive()
+    private[this] val _lock = new Object
+    private[this] var _configuration: Option[Configuration] = None
+    private[this] lazy val _client: Indexer = newIndexer()
 
-                import org.elasticsearch.index.query.QueryBuilders._
-                val count = try {
-                    indexer.count(Seq(c.indexName), Seq(c.typeName), termQuery("_type", c.typeName)).getCount
-                } catch {
-                    case _: Throwable => 0
-                }
-
-                if (count <= 0) {
-                    try {
-                        indexer.createIndex(c.indexName)
-                    } catch {
-                        case e: Throwable => // TODO
-                    }
-
-                    if (c.initializeMapping) {
-                        try {
-                            indexer.putMapping(c.indexName, c.typeName, mapping)
-                        } catch {
-                            case e: Throwable => // TODO
-                        }
-                    }
-                }
-
-                indexer
-            }
-            case _ => throw new IllegalStateException()
+    /**
+     * @return new `Indexer` instance
+     */
+    private[this] def newIndexer(): Indexer = _configuration match {
+        case Some(c: Configuration) => {
+            IndexerHolder(c).start()
         }
+        case _ => throw new IllegalArgumentException("there's no valid configuration")
     }
 
-    private[this] def newTransportClient(c: Configuration): TransportClient = {
-        val settings = ImmutableSettings.settingsBuilder()
-                       .put("node.data", false)
-                       .put("node.client", true)
-                       .put("client.transport.sniff", c.sniffHostnames)
-                       .put("client.transport.ignore_cluster_name", c.clusterName == "")
-                       .put("cluster.name", c.clusterName)
-                       .build()
+    def withConfiguration(configuration:Configuration)(f: Indexer => BufferedStore): BufferedStore = {
+        _lock.synchronized {
+                               if (!_configuration.isDefined) {
+                                   _configuration = Some(configuration)
+                               }
+                           }
 
-        val client = new TransportClient(settings)
-
-        c.hosts.map(_.split(":")).foreach(host => {
-            client.addTransportAddress(new InetSocketTransportAddress(host(0), Integer.parseInt(host(1))))
-        })
-
-        client
+        f(_client)
     }
 
-    private[this] lazy val mapping: String = Source.fromURL(getClass.getResource("/mapping.json")).getLines()
-                                             .mkString("\n")
-
-    def newClient(configuration: Configuration): BufferedStore = {
-        this.configuration = Some(configuration)
-
-        Elasticsearch(_client, configuration)
+    def newClient(configuration: Configuration): BufferedStore = withConfiguration(configuration) { indexer =>
+        Elasticsearch(indexer, configuration)
     }
+
+    def shutdown() = _client.stop()
 }
 
 
@@ -98,16 +61,22 @@ object Elasticsearch {
  * @author miha
  */
 case class Elasticsearch(client: Indexer, configuration: Configuration) extends BufferedStore {
+
+    import Elasticsearch._
+
     private[this] lazy val queue = scala.collection.mutable.Queue[IndexRequest]()
     private[this] lazy val responses = scala.collection.mutable.ListBuffer[FutureResponse]()
-    private[this] lazy val ttl:Long = {
-        if(configuration.ttl > 0) {
+    private[this] lazy val ttl: Long = {
+        if (configuration.ttl > 0 && configuration.ttl < MAX_TTL) {
             Duration.apply(configuration.ttl, TimeUnit.DAYS).inMilliseconds
         } else {
             0
         }
     }
 
+    /**
+     * @return new `IndexRequest`
+     */
     override def newEntry(data: XContentBuilder): IndexRequest = {
         val index = new IndexRequest(configuration.indexName, configuration.typeName)
         index.source(data)
@@ -173,31 +142,15 @@ case class Elasticsearch(client: Indexer, configuration: Configuration) extends 
     override def size = queue.size
 
     override def shutdown() {
-        send(new Notifier[IndexRequest] {
-            def onFailure(e: Throwable, q: Iterable[IndexRequest]) = queue.clear()
-
-            def onSuccess() = queue.clear()
-        })
+        send(ShutdownNotifier(queue))
 
         waitForResponses()
     }
 }
 
-/**
- * a special FutureResponse that wraps a ListenableActionFuture.
- */
-protected[store] abstract class BulkFutureResponse(response: ListenableActionFuture[BulkResponse]) extends FutureResponse {
+case class ShutdownNotifier(queue: mutable.Queue[IndexRequest]) extends Notifier[IndexRequest] {
+    def onFailure(e: Throwable, q: Iterable[IndexRequest]) = queue.clear()
 
-    override def await(timeout: Timeout) = {
-        if (!response.isDone && !response.isCancelled) {
-            try {
-                get(timeout)
-            } catch {
-                case e: Throwable => // TODO: handle this error
-            }
-        }
-    }
-
-    override def get(timeout: Timeout) = response.get(timeout.duration.toSeconds, TimeUnit.SECONDS)
+    def onSuccess() = queue.clear()
 }
 

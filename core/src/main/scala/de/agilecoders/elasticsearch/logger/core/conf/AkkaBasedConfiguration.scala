@@ -12,7 +12,6 @@ import scala.io.{BufferedSource, Source}
  * @param name the unique log2es name
  */
 case class AkkaBasedConfiguration() extends Configuration {
-
     import scala.collection.convert.WrapAsScala._
 
     /**
@@ -23,7 +22,7 @@ case class AkkaBasedConfiguration() extends Configuration {
 
         (findCustomConfig match {
             case Some(s: Source) => ConfigFactory.parseReader(s.bufferedReader()).withFallback(config)
-            case _ => config
+            case _ => throw new IllegalArgumentException("there's no custom configuration file: /log2es.conf")
         }).getConfig(name)
     }
 

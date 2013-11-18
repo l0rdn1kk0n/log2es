@@ -12,7 +12,7 @@ import scala.collection.mutable
 import scalastic.elasticsearch.Indexer
 
 /**
- * TODO miha: document class purpose
+ * Special `Store` implementation that uses elasticsearch java client.
  *
  * TODO miha: refactor and cleanup this file
  *
@@ -35,6 +35,12 @@ object Elasticsearch {
         case _ => throw new IllegalArgumentException("there's no valid configuration")
     }
 
+    /**
+     * updates the configuration with given one and executes given function with `Indexer` as
+     * parameter.
+     *
+     * @param configuration the configuration to use.
+     */
     def withConfiguration(configuration:Configuration)(f: Indexer => BufferedStore): BufferedStore = {
         _lock.synchronized {
                                if (!_configuration.isDefined) {
@@ -45,10 +51,18 @@ object Elasticsearch {
         f(_client)
     }
 
+    /**
+     * creates a new `Elasticsearch` client with given configuration.
+     *
+     * @param configuration the configuration to use.
+     */
     def newClient(configuration: Configuration): BufferedStore = withConfiguration(configuration) { indexer =>
         Elasticsearch(indexer, configuration)
     }
 
+    /**
+     * shutdown `Indexer` and its transport client
+     */
     def shutdown() = _client.stop()
 }
 
@@ -78,6 +92,22 @@ case class Elasticsearch(client: Indexer, configuration: Configuration) extends 
      * @return new `IndexRequest`
      */
     override def newEntry(data: XContentBuilder): IndexRequest = {
+        val index = new IndexRequest(configuration.indexName, configuration.typeName)
+        index.source(data)
+
+        if (ttl > 0) {
+            index.ttl(ttl)
+        }
+
+        queue += index
+
+        index
+    }
+
+    /**
+     * @return new `IndexRequest`
+     */
+    override def newEntry(data: String): IndexRequest = {
         val index = new IndexRequest(configuration.indexName, configuration.typeName)
         index.source(data)
 

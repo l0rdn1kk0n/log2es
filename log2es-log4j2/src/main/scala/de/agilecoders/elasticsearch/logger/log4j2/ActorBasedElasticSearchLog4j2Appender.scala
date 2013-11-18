@@ -57,6 +57,14 @@ class ActorBasedElasticSearchLog4j2Appender(log2esContext: Log2esContext, name: 
             throw new IllegalStateException(s"AsyncAppender $name is not active")
         }
 
+        if (log2esContext.dependencies.configuration.addThread) {
+            eventObject.getThreadName
+        }
+
+        if (log2esContext.dependencies.configuration.addMdc) {
+            eventObject.getContextMap
+        }
+
         router ! eventObject
     }
 

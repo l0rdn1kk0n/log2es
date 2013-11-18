@@ -37,6 +37,14 @@ class ActorBasedElasticSearchLogbackAppender extends UnsynchronizedAppenderBase[
      * @param eventObject log event to handle
      */
     override def append(eventObject: ILoggingEvent): Unit = {
+        if (log2es.dependencies.configuration.addThread) {
+            eventObject.getThreadName
+        }
+
+        if (log2es.dependencies.configuration.addMdc) {
+            eventObject.getMDCPropertyMap
+        }
+
         router ! eventObject
     }
 

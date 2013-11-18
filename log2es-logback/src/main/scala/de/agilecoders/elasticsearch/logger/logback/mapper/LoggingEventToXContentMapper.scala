@@ -141,3 +141,116 @@ case class LoggingEventToXContentMapper(configuration: Configuration) extends Lo
     }
 
 }
+
+case class LoggingEventToJsonMapper(configuration: Configuration) extends LoggingEventMapper {
+    private[this] val formatter: DateTimeFormatter = ISODateTimeFormat.dateTime()
+
+    import org.json4s.native.Serialization._
+
+    /**
+     * transforms an `event` to a `data` structure according to the
+     * elasticsearch mapping.
+     *
+     * @param event the logging event to transform
+     * @return logging event as map
+     */
+    def map(rawEvent: AnyRef) = {
+        val event = rawEvent.asInstanceOf[ILoggingEvent]
+        val value = mutable.Map[String, Any]()
+
+        if (configuration.addTimestamp) {
+            value.put(Keys.timestamp, event.getTimeStamp)
+        }
+
+        if (configuration.addDate) {
+            value.put(Keys.date, new DateTime(event.getTimeStamp).toString(formatter))
+        }
+
+        if (configuration.addLevel && event.getLevel != null) {
+            value.put(Keys.level, event.getLevel.levelStr)
+        }
+
+        if (configuration.addMessage && event.getMessage != null) {
+            value.put(Keys.message, event.getFormattedMessage)
+        }
+
+        if (configuration.addLogger && event.getLoggerName != null) {
+            value.put(Keys.logger, event.getLoggerName)
+        }
+
+        if (configuration.addThread && event.getThreadName != null) {
+            value.put(Keys.thread, event.getThreadName)
+        }
+
+        if (configuration.addMarker && event.getMarker != null) {
+            value.put(Keys.marker, event.getMarker.getName)
+        }
+
+        if (configuration.addArguments && event.getArgumentArray != null && event.getArgumentArray.length > 0) {
+            val arr = map(event.getArgumentArray, {
+                v: Object => v.toString
+            })
+
+            value.put(Keys.arguments, arr)
+        }
+
+        val mdc = event.getMDCPropertyMap
+        if (configuration.addMdc && mdc != null && !mdc.isEmpty) {
+            value.put(Keys.mdc, mdc)
+        }
+
+        if (configuration.addCaller && event.hasCallerData) {
+            value.put(Keys.caller, map(event.getCallerData, transformCaller))
+        }
+
+        if (configuration.addStacktrace && event.getThrowableProxy != null) {
+            value.put(Keys.stacktrace, transformThrowable(event.getThrowableProxy))
+        }
+
+        implicit val formats = org.json4s.DefaultFormats
+        write(value)
+    }
+
+    private def transformCaller(stackTraceElement: StackTraceElement): Map[String, Object] = {
+        val map = mutable.Map[String, Object]()
+
+        map.put(Keys.file, stackTraceElement.getFileName)
+        map.put(Keys.clazz, stackTraceElement.getClassName)
+        map.put(Keys.method, stackTraceElement.getMethodName)
+        map.put(Keys.line, stackTraceElement.getLineNumber.asInstanceOf[Integer])
+        map.put(Keys.nativeValue, stackTraceElement.isNativeMethod.asInstanceOf[java.lang.Boolean])
+
+        map.toMap
+    }
+
+    private def map[T: ClassTag, O: ClassTag](array: Array[T], transformer: T => O): java.lang.Iterable[O] = {
+        for (i <- Range(0, array.length)) yield transformer(array(i))
+    }
+
+    private def transformThrowable(throwable: IThrowableProxy): Map[String, Object] = {
+        val map = mutable.Map[String, Object]()
+
+        map.put(Keys.clazz, throwable.getClassName)
+        map.put(Keys.message, throwable.getMessage)
+        map.put(Keys.stacktrace, transformStackTraceElement(throwable))
+
+        if (throwable.getCause != null) {
+            map.put(Keys.cause, transformThrowable(throwable.getCause))
+        }
+
+        map.toMap
+    }
+
+    private def transformStackTraceElement(throwable: IThrowableProxy): Seq[String] = {
+        val elementProxies: Array[StackTraceElementProxy] = throwable.getStackTraceElementProxyArray
+        val totalFrames = elementProxies.length - throwable.getCommonFrames
+
+        for (i <- Range(0, totalFrames)) yield elementProxies(i).getStackTraceElement.toString
+    }
+
+    /**
+     * @param event the logging event to check for support
+     * @return true, if given event can be transformed
+     */
+    def isSupported(event: AnyRef) = event != null && event.isInstanceOf[ILoggingEvent]
+}

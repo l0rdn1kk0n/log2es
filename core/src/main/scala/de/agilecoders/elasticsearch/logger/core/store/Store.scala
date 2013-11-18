@@ -30,6 +30,15 @@ trait Store[R] {
     def newEntry(entry: XContentBuilder): R
 
     /**
+     * adds a new entry to the store. Some implementation uses a queue to improve performance, so make
+     * sure to call send or shutdown at least once.
+     *
+     * @param entry new message to store
+     * @return wrapped entry which was/will be added
+     */
+    def newEntry(entry: String): R
+
+    /**
      * shutdown store client. This will also flush all queues and blocks until all requests are finished.
      */
     def shutdown()

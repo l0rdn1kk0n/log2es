@@ -38,6 +38,10 @@ class ActorBasedElasticSearchLog4jAppender extends AppenderSkeleton with Elastic
             eventObject.getMDCCopy()
         }
 
+        if (log2esContext.dependencies.configuration.addThread) {
+            eventObject.getThreadName
+        }
+
         router ! eventObject
     }
 

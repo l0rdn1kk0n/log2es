@@ -16,7 +16,7 @@ object Log2esContext {
     def create(dependencies: Dependencies): Log2esContext = {
         val context = Log2esContext(dependencies)
 
-        context
+        context.start()
     }
 
 }

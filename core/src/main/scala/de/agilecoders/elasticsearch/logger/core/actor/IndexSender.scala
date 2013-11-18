@@ -28,7 +28,9 @@ class IndexSender() extends Actor with RestartingSupervisor with ActorLogging wi
     private[this] lazy val client = newStoreClient()
 
     override protected def onMessage = Stats.time("log2es.sender.onMessageTime") {
+        case Converted(event: String) => append(event)
         case Converted(event: AnyRef) if event.isInstanceOf[XContentBuilder] => append(event.asInstanceOf[XContentBuilder])
+        case event: String => append(event)
         case event: XContentBuilder => append(event)
     }
 
@@ -39,10 +41,14 @@ class IndexSender() extends Actor with RestartingSupervisor with ActorLogging wi
     /**
      * appends a given log event to es bulk operation
      *
-     * @param data log event as XContentBuilder
+     * @param data log event as String
      */
-    private[this] def append(data: XContentBuilder): Unit = {
-        client.newEntry(data)
+    private[this] def append(data: AnyRef): Unit = {
+        data match {
+            case v:String => client.newEntry(v)
+            case v:XContentBuilder => client.newEntry(v)
+            case _ => return
+        }
 
         Stats.incr("log2es.sender.received")
         Stats.addMetric("log2es.sender.queueSize", client.size)

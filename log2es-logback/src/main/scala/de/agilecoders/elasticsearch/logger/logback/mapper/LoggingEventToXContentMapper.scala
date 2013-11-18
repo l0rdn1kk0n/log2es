@@ -15,7 +15,8 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 
 /**
- * TODO miha
+ * The `LoggingEventToXContentMapper` maps incoming `ILoggingEvent`s to a `XContentBuilder` which
+ * is used by elasticsearch client to create an element.
  */
 @SerialVersionUID(1687691786811587371L)
 case class LoggingEventToXContentMapper(configuration: Configuration) extends LoggingEventMapper {
@@ -136,6 +137,7 @@ case class LoggingEventToXContentMapper(configuration: Configuration) extends Lo
         if (configuration.addMarker && event.getMarker != null) {
             builder.field(Keys.marker, event.getMarker.getName)
         }
+
     }
 
 }

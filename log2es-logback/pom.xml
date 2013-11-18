@@ -18,6 +18,12 @@
             <groupId>de.agilecoders.elasticsearch.logger</groupId>
             <artifactId>log2es-core</artifactId>
         </dependency>
+        <dependency>
+            <groupId>de.agilecoders.elasticsearch.logger</groupId>
+            <artifactId>log2es-core</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>ch.qos.logback</groupId>

@@ -28,6 +28,27 @@
             <artifactId>log4j-core</artifactId>
             <version>${org.apache.logging.log4j-version}</version>
         </dependency>
+        <dependency>
+            <groupId>de.agilecoders.elasticsearch.logger</groupId>
+            <artifactId>log2es-core</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_2.10</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-testkit_2.10</artifactId>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>de.agilecoders.elasticsearch.logger</groupId>

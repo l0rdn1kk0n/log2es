@@ -91,7 +91,7 @@ case class LoggingEventToXContentMapper(configuration: Configuration) extends Lo
         }
 
         if (configuration.addMessage && event.getMessage != null) {
-            builder.field(Keys.message, event.getMessage)
+            builder.field(Keys.message, event.getMessage.getFormattedMessage)
         }
 
         if (configuration.addLogger && event.getLoggerName != null) {

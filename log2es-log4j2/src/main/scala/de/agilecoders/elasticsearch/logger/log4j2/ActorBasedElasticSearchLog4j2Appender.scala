@@ -3,6 +3,7 @@ package de.agilecoders.elasticsearch.logger.log4j2
 import de.agilecoders.elasticsearch.logger.core.Log2esContext
 import de.agilecoders.elasticsearch.logger.core.actor.{Names, Router}
 import de.agilecoders.elasticsearch.logger.core.conf.Dependencies
+import de.agilecoders.elasticsearch.logger.core.messages.Initialize
 import de.agilecoders.elasticsearch.logger.log4j2.mapper.LoggingEventToXContentMapper
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.core.appender.AbstractAppender
@@ -12,17 +13,19 @@ import org.apache.logging.log4j.core.{Filter, LogEvent}
 object ActorBasedElasticSearchLog4j2Appender {
 
     @PluginFactory
-    def createAppender(@PluginAttribute("name") name: String,
-                       @PluginElement("Filters") filter: Filter): ActorBasedElasticSearchLog4j2Appender = {
+    def createAppender(@PluginAttribute("name") name: String = "log2es",
+                       @PluginElement("Filters") filter: Filter = null): ActorBasedElasticSearchLog4j2Appender = {
         new ActorBasedElasticSearchLog4j2Appender(log2esContext, name, Option(filter))
     }
 
     // TODO: context will be killed by appender, this should be done by factory
-    private lazy val log2esContext: Log2esContext = {
+    protected lazy val log2esContext: Log2esContext = {
         Log2esContext.create(new Dependencies {
             override def newMapper() = LoggingEventToXContentMapper(configuration)
         })
     }
+
+    def apply(): ActorBasedElasticSearchLog4j2Appender = new ActorBasedElasticSearchLog4j2Appender(log2esContext)
 }
 
 /**
@@ -37,7 +40,11 @@ object ActorBasedElasticSearchLog4j2Appender {
  */
 @Plugin(name = "ActorBasedElasticSearchLog4j2Appender", category = "Core", elementType = "appender", printObject = true)
 class ActorBasedElasticSearchLog4j2Appender(log2esContext: Log2esContext, name: String = "log2es", filter: Option[Filter] = None) extends AbstractAppender(name, filter.getOrElse(null), null) with ElasticSearchLog4j2Appender {
-    protected[log4j2] lazy val router = log2esContext.dependencies.actorSystem.actorOf(Router.props(), Names.Router)
+    protected[log4j2] lazy val router = {
+        val router = log2esContext.dependencies.actorSystem.actorOf(Router.props(), Names.Router)
+        router ! Initialize(log2esContext)
+        router
+    }
     protected[log4j2] lazy val discardableLevel = Level.toLevel(log2esContext.dependencies.configuration.discardable).intLevel()
 
     /**

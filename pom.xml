@@ -69,6 +69,12 @@
                 <artifactId>log2es-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>de.agilecoders.elasticsearch.logger</groupId>
+                <artifactId>log2es-core</artifactId>
+                <type>test-jar</type>
+                <version>${project.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>ch.qos.logback</groupId>

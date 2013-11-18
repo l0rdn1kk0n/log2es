@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>org.sonatype.oss</groupId>
         <artifactId>oss-parent</artifactId>
         <version>7</version>
-        <relativePath />
+        <relativePath/>
     </parent>
 
     <groupId>de.agilecoders.elasticsearch.logger</groupId>
@@ -182,6 +183,9 @@
     </dependencyManagement>
 
     <build>
+        <sourceDirectory>src/main/scala</sourceDirectory>
+        <testSourceDirectory>src/test/scala</testSourceDirectory>
+
         <resources>
             <resource>
                 <filtering>false</filtering>
@@ -251,6 +255,24 @@
                 <version>${versions-maven-plugin.version}</version>
                 <inherited>true</inherited>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>2.2</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                            <goal>test-jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <includes>
+                        <include>**/*.scala</include>
+                    </includes>
+                </configuration>
+            </plugin>
         </plugins>
 
         <pluginManagement>
@@ -277,6 +299,14 @@
                     <version>${mvn.build.scala-plugin.version}</version>
                     <executions>
                         <execution>
+                            <id>doc</id>
+                            <phase>generate-sources</phase>
+                            <goals>
+                                <goal>compile</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>compile</id>
                             <goals>
                                 <goal>compile</goal>
                                 <goal>testCompile</goal>
@@ -284,36 +314,20 @@
                         </execution>
                     </executions>
                     <configuration>
+                        <scalaVersion>${scala.version}</scalaVersion>
+                        <sourceDir>src/main/scala</sourceDir>
+                        <mainSourceDir>src/main/scala</mainSourceDir>
+                        <testSourceDir>src/test/scala</testSourceDir>
                         <checkMultipleScalaVersions>false</checkMultipleScalaVersions>
+                        <compileOrder>scala</compileOrder>
                         <jvmArgs>
                             <jvmArg>-Xms256m</jvmArg>
                             <jvmArg>-XX:MaxPermSize=1024m</jvmArg>
                             <jvmArg>-Xmx1024m</jvmArg>
                         </jvmArgs>
-                    </configuration>
-                </plugin>
-                <plugin>
-                    <groupId>net.alchim31.maven</groupId>
-                    <artifactId>scala-maven-plugin</artifactId>
-                    <executions>
-                        <execution>
-                            <id>doc</id>
-                            <phase>generate-sources</phase>
-                            <goals>
-                                <goal>compile</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                    <configuration>
-                        <checkMultipleScalaVersions>false</checkMultipleScalaVersions>
                         <args>
                             <arg>-P:genjavadoc:out=${project.build.directory}/genjavadoc</arg>
                         </args>
-                        <jvmArgs>
-                            <jvmArg>-Xms256m</jvmArg>
-                            <jvmArg>-XX:MaxPermSize=1024m</jvmArg>
-                            <jvmArg>-Xmx1024m</jvmArg>
-                        </jvmArgs>
                         <compilerPlugins>
                             <compilerPlugin>
                                 <groupId>com.typesafe.genjavadoc</groupId>
@@ -364,11 +378,16 @@
                     <executions>
                         <execution>
                             <goals>
-                                <goal>jar</goal>
-                                <goal>test-jar</goal>
+                                <goal>jar-no-fork</goal>
+                                <goal>test-jar-no-fork</goal>
                             </goals>
                         </execution>
                     </executions>
+                    <configuration>
+                        <includes>
+                            <include>**/*.scala</include>
+                        </includes>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>

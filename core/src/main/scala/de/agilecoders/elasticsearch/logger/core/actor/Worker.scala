@@ -2,16 +2,12 @@ package de.agilecoders.elasticsearch.logger.core.actor
 
 import akka.actor._
 import akka.routing.{RoundRobinRouter, Broadcast}
+import com.twitter.ostrich.stats.Stats
 import de.agilecoders.elasticsearch.logger.core.Log2esContext
 import de.agilecoders.elasticsearch.logger.core.actor.Reaper.WatchMe
 import de.agilecoders.elasticsearch.logger.core.conf.Configuration
 import de.agilecoders.elasticsearch.logger.core.messages.Action._
 import de.agilecoders.elasticsearch.logger.core.messages.{Initialize, FlushQueue, Converted}
-import java.util.concurrent.TimeUnit
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
-import scala.util.Random
-import com.twitter.ostrich.stats.Stats
 
 object Worker {
 
@@ -26,21 +22,6 @@ object Worker {
         .withMailbox("unbounded")
         .withDispatcher("log2es-dispatcher")
     }
-
-    /**
-     * create and start a new scheduler that sends `FlushQueue` messages to given `Worker` actor.
-     *
-     * @param context the actor context
-     * @param configuration the configuration
-     * @return new scheduler
-     */
-    protected[Worker] def newScheduler(context: ActorContext, configuration: Configuration)(implicit executor: ExecutionContext): Cancellable = {
-        val startDelay = Duration(100 + new Random().nextInt(configuration.flushInterval), TimeUnit.MILLISECONDS)
-        val interval = Duration(configuration.flushInterval, TimeUnit.MILLISECONDS)
-
-        context.system.scheduler.schedule(startDelay, interval, context.self, flushQueue)
-    }
-
 }
 
 /**
@@ -52,7 +33,6 @@ class Worker() extends Actor with DefaultSupervisor with ActorLogging with Defau
     private[this] lazy val configuration = newConfiguration()
     private[this] lazy val converter: ActorRef = newConverter()
     private[this] lazy val indexSender: ActorRef = newSender()
-    private[this] lazy val scheduler: Cancellable = newScheduler(configuration)
 
     override protected def onMessage = Stats.time("log2es.worker.onMessageTime") {
         case Converted(message: AnyRef) => indexSender ! message
@@ -105,8 +85,6 @@ class Worker() extends Actor with DefaultSupervisor with ActorLogging with Defau
         flush()
         forward(PoisonPill.getInstance)
 
-        scheduler.cancel()
-
         context.stop(converter)
         context.stop(indexSender)
 
@@ -129,14 +107,5 @@ class Worker() extends Actor with DefaultSupervisor with ActorLogging with Defau
      * creates a new sender actor reference
      */
     protected def newSender(): ActorRef = context.actorOf(IndexSender.props(), Names.Sender)
-
-    /**
-     * creates a new scheduler instance
-     */
-    protected def newScheduler(configuration: Configuration): Cancellable = {
-        implicit val executor = context.system.dispatcher
-
-        Worker.newScheduler(context, configuration)
-    }
 
 }

@@ -2,11 +2,19 @@ package de.agilecoders.elasticsearch.logger.core.actor
 
 import akka.actor._
 import com.twitter.ostrich.stats.Stats
+import de.agilecoders.elasticsearch.logger.core.Log2esContext
 import de.agilecoders.elasticsearch.logger.core.conf.Configuration
-import de.agilecoders.elasticsearch.logger.core.messages.{FlushQueue, Converted}
+import de.agilecoders.elasticsearch.logger.core.messages.Action._
+import de.agilecoders.elasticsearch.logger.core.messages.Converted
+import de.agilecoders.elasticsearch.logger.core.messages.FlushQueue
 import de.agilecoders.elasticsearch.logger.core.store.Notifier
+import java.util.concurrent.TimeUnit
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.common.xcontent.XContentBuilder
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.Duration
+import scala.util.Random
+import scala.concurrent.ExecutionContext.Implicits.global
 
 
 /**
@@ -15,7 +23,24 @@ import org.elasticsearch.common.xcontent.XContentBuilder
  * @author miha
  */
 object IndexSender {
+    /**
+     * creates a new `Props` instance to create an `IndexSender`
+     */
     def props() = Props(classOf[IndexSender])
+
+    /**
+     * create and start a new scheduler that sends `FlushQueue` messages to given `Worker` actor.
+     *
+     * @param context the actor context
+     * @param configuration the configuration
+     * @return new scheduler
+     */
+    protected[IndexSender] def newScheduler(context: ActorContext, configuration: Configuration)(implicit executor: ExecutionContext): Cancellable = {
+        val startDelay = Duration(100 + new Random().nextInt(configuration.flushInterval), TimeUnit.MILLISECONDS)
+        val interval = Duration(configuration.flushInterval, TimeUnit.MILLISECONDS)
+
+        context.system.scheduler.schedule(startDelay, interval, context.self, flushQueue)
+    }
 }
 
 /**
@@ -26,6 +51,7 @@ object IndexSender {
 class IndexSender() extends Actor with RestartingSupervisor with ActorLogging with DefaultMessageHandler {
     private[this] lazy val configuration = newConfiguration()
     private[this] lazy val client = newStoreClient()
+    private[this] var scheduler: Option[Cancellable] = None
 
     override protected def onMessage = Stats.time("log2es.sender.onMessageTime") {
         case Converted(event: String) => append(event)
@@ -38,15 +64,20 @@ class IndexSender() extends Actor with RestartingSupervisor with ActorLogging wi
         flush()
     }
 
+
+    override protected def onInitialized(log2es: Log2esContext) = {
+        scheduler = Some(IndexSender.newScheduler(context, configuration))
+    }
+
     /**
-     * appends a given log event to es bulk operation
-     *
-     * @param data log event as String
-     */
+         * appends a given log event to es bulk operation
+         *
+         * @param data log event as String
+         */
     private[this] def append(data: AnyRef): Unit = {
         data match {
-            case v:String => client.newEntry(v)
-            case v:XContentBuilder => client.newEntry(v)
+            case v: String => client.newEntry(v)
+            case v: XContentBuilder => client.newEntry(v)
             case _ => return
         }
 
@@ -102,6 +133,10 @@ class IndexSender() extends Actor with RestartingSupervisor with ActorLogging wi
     }
 
     override def postStop() = {
+        if (scheduler.isDefined && !scheduler.get.isCancelled) {
+            scheduler.get.cancel()
+        }
+
         flush()
 
         client.shutdown()

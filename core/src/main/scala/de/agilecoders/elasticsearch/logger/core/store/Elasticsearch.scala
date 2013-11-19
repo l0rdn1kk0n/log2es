@@ -7,6 +7,7 @@ import org.elasticsearch.action.ActionListener
 import org.elasticsearch.action.bulk.BulkResponse
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.common.xcontent.XContentBuilder
+import org.slf4j.LoggerFactory
 import scala.Some
 import scala.collection.mutable
 import scalastic.elasticsearch.Indexer
@@ -41,12 +42,12 @@ object Elasticsearch {
      *
      * @param configuration the configuration to use.
      */
-    def withConfiguration(configuration:Configuration)(f: Indexer => BufferedStore): BufferedStore = {
+    def withConfiguration(configuration: Configuration)(f: Indexer => BufferedStore): BufferedStore = {
         _lock.synchronized {
-                               if (!_configuration.isDefined) {
-                                   _configuration = Some(configuration)
-                               }
-                           }
+            if (!_configuration.isDefined) {
+                _configuration = Some(configuration)
+            }
+        }
 
         f(_client)
     }
@@ -56,8 +57,9 @@ object Elasticsearch {
      *
      * @param configuration the configuration to use.
      */
-    def newClient(configuration: Configuration): BufferedStore = withConfiguration(configuration) { indexer =>
-        Elasticsearch(indexer, configuration)
+    def newClient(configuration: Configuration): BufferedStore = withConfiguration(configuration) {
+        indexer =>
+            Elasticsearch(indexer, configuration)
     }
 
     /**
@@ -75,6 +77,7 @@ object Elasticsearch {
  * @author miha
  */
 case class Elasticsearch(client: Indexer, configuration: Configuration) extends BufferedStore {
+    private val logger = LoggerFactory.getLogger("elasticsearch")
 
     import Elasticsearch._
 
@@ -143,7 +146,14 @@ case class Elasticsearch(client: Indexer, configuration: Configuration) extends 
             def onResponse(response: BulkResponse) = {
                 responses -= futureResponse
 
-                notifier.onSuccess()
+                response.hasFailures match {
+                    case true => {
+                        response.getItems
+                        .filter(_.isFailed)
+                        .foreach(logger.error("can't store: {}", _)) // TODO miha: reschedule or drop failed messages
+                    }
+                    case _ => notifier.onSuccess()
+                }
             }
         })
 

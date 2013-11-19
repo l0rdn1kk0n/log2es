@@ -4,6 +4,7 @@ import akka.actor.SupervisorStrategy.{Restart, Escalate, Resume}
 import akka.actor._
 import akka.routing.Broadcast
 import de.agilecoders.elasticsearch.logger.core.Log2esContext
+import de.agilecoders.elasticsearch.logger.core.messages.Action._
 import de.agilecoders.elasticsearch.logger.core.messages.{FlushQueue, Initialize}
 import scala.concurrent.duration._
 
@@ -56,17 +57,23 @@ trait RestartingSupervisor {
 trait DefaultMessageHandler extends ContextAware {
     this: Actor with ActorLogging =>
 
+    private var initialized = false
+
     final override def receive: Actor.Receive = {
         case Broadcast(i: Initialize) => initialize(i)
         case i: Initialize => initialize(i)
     }
 
     private def initialize(i: Initialize) {
-        log2es = i.context
-        context.become(activeReceiver)
+        if (!initialized) {
+            initialized = true
 
-        log.warning("initialized: " + self.path)
-        onInitialized(log2es)
+            log2es = i.context
+            context.become(activeReceiver)
+
+            log.warning("initialized: " + self.path)
+            onInitialized(log2es)
+        }
     }
 
     private def activeReceiver: Actor.Receive = {
@@ -79,10 +86,17 @@ trait DefaultMessageHandler extends ContextAware {
 
     final protected def onUnknownMessage: Actor.Receive = {
         case Broadcast(flush: FlushQueue) => filter(flush, onFlushQueue)
+        case Broadcast(FlushQueue) => filter(flushQueue, onFlushQueue)
         case flush: FlushQueue => filter(flush, onFlushQueue)
+        case FlushQueue => filter(flushQueue, onFlushQueue)
 
         case message => {
-            unhandled(message)
+            message match {
+                case m: FlushQueue =>
+                    filter(m, onFlushQueue)
+                case _ =>
+                    unhandled(message)
+            }
         }
     }
 

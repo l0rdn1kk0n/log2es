@@ -25,7 +25,7 @@
                 "type": "string"
             },
             "mdc": {
-                "type": "string",
+                "type": "object",
                 "store": "yes"
             },
             "arguments": {
@@ -37,8 +37,7 @@
                 "enabled": false
             },
             "stacktrace": {
-                "type": "object",
-                "enabled": false
+                "type": "object"
             },
             "marker": {
                 "type": "string"

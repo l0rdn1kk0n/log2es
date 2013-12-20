@@ -11,7 +11,8 @@ import de.agilecoders.elasticsearch.logger.core.messages.Initialize
 object Log2esContext {
 
     /**
-     * TODO
+     * @param dependencies the dependencies to use for this context instance
+     * @return new log2es context
      */
     def create(dependencies: Dependencies): Log2esContext = {
         val context = Log2esContext(dependencies)

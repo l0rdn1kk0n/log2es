@@ -6,10 +6,10 @@ import java.util.concurrent.TimeUnit
 import org.elasticsearch.action.ActionListener
 import org.elasticsearch.action.bulk.BulkResponse
 import org.elasticsearch.action.index.IndexRequest
+import org.elasticsearch.common.Strings
 import org.elasticsearch.common.xcontent.XContentBuilder
-import org.slf4j.LoggerFactory
 import scala.Some
-import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scalastic.elasticsearch.Indexer
 
 /**
@@ -30,9 +30,7 @@ object Elasticsearch {
      * @return new `Indexer` instance
      */
     private[this] def newIndexer(): Indexer = _configuration match {
-        case Some(c: Configuration) => {
-            IndexerHolder(c).start()
-        }
+        case Some(c: Configuration) => IndexerHolder(c).start()
         case _ => throw new IllegalArgumentException("there's no valid configuration")
     }
 
@@ -77,11 +75,11 @@ object Elasticsearch {
  * @author miha
  */
 case class Elasticsearch(client: Indexer, configuration: Configuration) extends BufferedStore {
-    private val logger = LoggerFactory.getLogger("elasticsearch")
 
     import Elasticsearch._
 
-    private[this] lazy val queue = scala.collection.mutable.Queue[IndexRequest]()
+    private[this] lazy val error = new RuntimeException()
+    private[this] lazy val queue = new ArrayBuffer[IndexRequest](configuration.queueSize)
     private[this] lazy val responses = scala.collection.mutable.ListBuffer[FutureResponse]()
     private[this] lazy val ttl: Long = {
         if (configuration.ttl > 0 && configuration.ttl < MAX_TTL) {
@@ -96,7 +94,9 @@ case class Elasticsearch(client: Indexer, configuration: Configuration) extends 
      */
     override def newEntry(data: XContentBuilder): IndexRequest = {
         val index = new IndexRequest(configuration.indexName, configuration.typeName)
-        index.source(data)
+                    .source(data)
+                    .id(Strings.randomBase64UUID())
+                    .opType(IndexRequest.OpType.CREATE)
 
         if (ttl > 0) {
             index.ttl(ttl)
@@ -112,7 +112,9 @@ case class Elasticsearch(client: Indexer, configuration: Configuration) extends 
      */
     override def newEntry(data: String): IndexRequest = {
         val index = new IndexRequest(configuration.indexName, configuration.typeName)
-        index.source(data)
+          .source(data)
+          .id(Strings.randomBase64UUID())
+          .opType(IndexRequest.OpType.CREATE)
 
         if (ttl > 0) {
             index.ttl(ttl)
@@ -148,9 +150,9 @@ case class Elasticsearch(client: Indexer, configuration: Configuration) extends 
 
                 response.hasFailures match {
                     case true => {
-                        response.getItems
-                        .filter(_.isFailed)
-                        .foreach(logger.error("can't store: {}", _)) // TODO miha: reschedule or drop failed messages
+                        val ids = response.getItems.filter(_.isFailed).map(_.getId)
+
+                        notifier.onFailure(error, q.filter(i => ids.contains(i.id())))
                     }
                     case _ => notifier.onSuccess()
                 }
@@ -168,14 +170,8 @@ case class Elasticsearch(client: Indexer, configuration: Configuration) extends 
         responses.clear()
     }
 
-    override def send(notifier: Notifier[IndexRequest]) = {
-        val q = queue
-
-        if (q.size > 0) {
-            val response = sendInternal(q, notifier)
-            responses += response
-        }
-
+    override def send(notifier: Notifier[IndexRequest]) = if (queue.size > 0) {
+        responses += sendInternal(queue, notifier)
         queue.clear()
     }
 
@@ -188,7 +184,7 @@ case class Elasticsearch(client: Indexer, configuration: Configuration) extends 
     }
 }
 
-case class ShutdownNotifier(queue: mutable.Queue[IndexRequest]) extends Notifier[IndexRequest] {
+case class ShutdownNotifier(queue: ArrayBuffer[IndexRequest]) extends Notifier[IndexRequest] {
     def onFailure(e: Throwable, q: Iterable[IndexRequest]) = queue.clear()
 
     def onSuccess() = queue.clear()

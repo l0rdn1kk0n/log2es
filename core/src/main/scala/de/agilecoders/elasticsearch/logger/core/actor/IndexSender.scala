@@ -133,9 +133,7 @@ class IndexSender() extends Actor with RestartingSupervisor with ActorLogging wi
     }
 
     override def postStop() = {
-        if (scheduler.isDefined && !scheduler.get.isCancelled) {
-            scheduler.get.cancel()
-        }
+        scheduler.filter(!_.isCancelled).foreach(_.cancel())
 
         flush()
 

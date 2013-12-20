@@ -37,7 +37,8 @@
                 "enabled": false
             },
             "stacktrace": {
-                "type": "object"
+                "type": "object",
+                "enabled": false
             },
             "marker": {
                 "type": "string"

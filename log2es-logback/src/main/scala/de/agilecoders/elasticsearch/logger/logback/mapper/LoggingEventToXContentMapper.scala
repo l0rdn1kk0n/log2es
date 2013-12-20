@@ -64,7 +64,6 @@ case class LoggingEventToXContentMapper(configuration: Configuration) extends Lo
 
         builder.endObject()
     }
-
     private def transformCaller(stackTraceElement: StackTraceElement): Map[String, Object] = {
         val map = mutable.Map[String, Object]()
 
@@ -81,8 +80,8 @@ case class LoggingEventToXContentMapper(configuration: Configuration) extends Lo
         for (i <- Range(0, array.length)) yield transformer(array(i))
     }
 
-    private def transformThrowable(throwable: IThrowableProxy): Map[String, Object] = {
-        val map = mutable.Map[String, Object]()
+    private def transformThrowable(throwable: IThrowableProxy): java.util.Map[String, Object] = {
+        val map = new java.util.HashMap[String, Object]()
 
         map.put(Keys.clazz, throwable.getClassName)
         map.put(Keys.message, throwable.getMessage)
@@ -92,11 +91,10 @@ case class LoggingEventToXContentMapper(configuration: Configuration) extends Lo
             map.put(Keys.cause, transformThrowable(throwable.getCause))
         }
 
-        map.toMap
+        map
     }
 
-
-    private def transformStackTraceElement(throwable: IThrowableProxy): Seq[String] = {
+    private def transformStackTraceElement(throwable: IThrowableProxy): java.lang.Iterable[String] = {
         val elementProxies: Array[StackTraceElementProxy] = throwable.getStackTraceElementProxyArray
         val totalFrames = elementProxies.length - throwable.getCommonFrames
 
@@ -227,8 +225,8 @@ case class LoggingEventToJsonMapper(configuration: Configuration) extends Loggin
         for (i <- Range(0, array.length)) yield transformer(array(i))
     }
 
-    private def transformThrowable(throwable: IThrowableProxy): Map[String, Object] = {
-        val map = mutable.Map[String, Object]()
+    private def transformThrowable(throwable: IThrowableProxy): java.util.Map[String, Object] = {
+        val map = new java.util.HashMap[String, Object]()
 
         map.put(Keys.clazz, throwable.getClassName)
         map.put(Keys.message, throwable.getMessage)
@@ -238,10 +236,10 @@ case class LoggingEventToJsonMapper(configuration: Configuration) extends Loggin
             map.put(Keys.cause, transformThrowable(throwable.getCause))
         }
 
-        map.toMap
+        map
     }
 
-    private def transformStackTraceElement(throwable: IThrowableProxy): Seq[String] = {
+    private def transformStackTraceElement(throwable: IThrowableProxy): java.lang.Iterable[String] = {
         val elementProxies: Array[StackTraceElementProxy] = throwable.getStackTraceElementProxyArray
         val totalFrames = elementProxies.length - throwable.getCommonFrames
 

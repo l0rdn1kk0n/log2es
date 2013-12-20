@@ -32,6 +32,9 @@ case class LogbackActorSystem(configuration: Configuration) extends Lifecycle[Ac
         channels.foreach(instance.eventStream.subscribe(subscriber, _))
     }
 
+    /**
+     * provides access to the reaper reference
+     */
     def reaper: ActorRef = _reaper
 
     /**
@@ -52,5 +55,8 @@ case class LogbackActorSystem(configuration: Configuration) extends Lifecycle[Ac
         instance.actorSelection("/user/router") ! PoisonPill.getInstance
     }
 
+    /**
+     * special event type
+     */
     type Event = AnyRef
 }

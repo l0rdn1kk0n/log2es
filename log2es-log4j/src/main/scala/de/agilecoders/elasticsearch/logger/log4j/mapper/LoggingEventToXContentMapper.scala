@@ -3,6 +3,7 @@ package de.agilecoders.elasticsearch.logger.log4j.mapper
 import de.agilecoders.elasticsearch.logger.core.conf.Configuration
 import de.agilecoders.elasticsearch.logger.core.mapper.{Keys, LoggingEventMapper}
 import java.lang.Object
+import java.util
 import org.apache.log4j.spi.LocationInfo
 import org.apache.log4j.spi.LoggingEvent
 import org.apache.log4j.spi.ThrowableInformation
@@ -11,8 +12,6 @@ import org.elasticsearch.common.xcontent.json.JsonXContent
 import org.joda.time.DateTime
 import org.joda.time.format.{DateTimeFormatter, ISODateTimeFormat}
 import scala.Predef.String
-import scala.collection.Map
-import scala.collection.mutable
 
 /**
  * TODO miha
@@ -58,19 +57,19 @@ case class LoggingEventToXContentMapper(configuration: Configuration) extends Lo
         builder.endObject()
     }
 
-    private def transformCaller(stackTraceElement: LocationInfo): Map[String, Object] = {
-        val map = mutable.Map[String, Object]()
+    private def transformCaller(stackTraceElement: LocationInfo): util.Map[String, Object] = {
+        val map = new util.HashMap[String, Object]()
 
         map.put(Keys.file, stackTraceElement.getFileName)
         map.put(Keys.clazz, stackTraceElement.getClassName)
         map.put(Keys.method, stackTraceElement.getMethodName)
         map.put(Keys.line, stackTraceElement.getLineNumber.asInstanceOf[Integer])
 
-        map.toMap
+        map
     }
 
-    private def transformThrowable(throwable: ThrowableInformation): Map[String, Object] = {
-        val map = mutable.Map[String, Object]()
+    private def transformThrowable(throwable: ThrowableInformation): util.Map[String, Object] = {
+        val map = new util.HashMap[String, Object]()
 
         map.put(Keys.clazz, throwable.getThrowable.getClass.getName)
         map.put(Keys.message, throwable.getThrowable.getMessage)
@@ -80,7 +79,7 @@ case class LoggingEventToXContentMapper(configuration: Configuration) extends Lo
             map.put(Keys.cause, transformThrowable(new ThrowableInformation(throwable.getThrowable.getCause)))
         }
 
-        map.toMap
+        map
     }
 
 

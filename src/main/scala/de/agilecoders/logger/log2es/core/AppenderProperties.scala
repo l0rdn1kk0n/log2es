@@ -3,6 +3,7 @@ package de.agilecoders.logger.log2es.core
 import java.util.concurrent.TimeUnit
 
 import akka.util.Timeout
+import de.agilecoders.logger.log2es.core.mapper.Fields
 
 import scala.beans.BeanProperty
 import scala.concurrent.duration.Duration
@@ -15,6 +16,9 @@ import scala.concurrent.duration.Duration
 trait AppenderProperties {
   private val defaults = Configuration()
 
+  /**
+   * @return all appender properties as immutable configuration class
+   */
   def toConfiguration = Configuration(
     actorSystemName = getActorSystemName,
     flushQueueTime = Duration.apply(getFlushQueueTime),
@@ -24,11 +28,26 @@ trait AppenderProperties {
     outgoingBulkSize = getOutgoingBulkSize,
     userAgent = getUserAgent,
     clusterName = getClusterName,
-    fields = getFields.split(',').map(_.trim)
+    ttl = getTtl,
+    esConfigurationFile = getEsConfigurationFile,
+    name = getName,
+    serviceName = getServiceName,
+    gzip = getGzip,
+    hostName = getHostName,
+    fields = Fields.parse(getFields)
   )
 
   @BeanProperty
+  var name: String = defaults.name
+
+  @BeanProperty
   var actorSystemName: String = defaults.actorSystemName
+
+  @BeanProperty
+  var serviceName: String = defaults.serviceName
+
+  @BeanProperty
+  var hostName: String = defaults.hostName
 
   @BeanProperty
   var clientType: String = defaults.clientType
@@ -38,6 +57,18 @@ trait AppenderProperties {
 
   @BeanProperty
   var userAgent: String = defaults.userAgent
+
+  @BeanProperty
+  var ttl: String = defaults.ttl
+
+  @BeanProperty
+  var updateMapping: Boolean = defaults.updateMapping
+
+  @BeanProperty
+  var gzip: Boolean = defaults.gzip
+
+  @BeanProperty
+  var esConfigurationFile: String = defaults.esConfigurationFile
 
   @BeanProperty
   var fields: String = defaults.fields.mkString("", ",", "")

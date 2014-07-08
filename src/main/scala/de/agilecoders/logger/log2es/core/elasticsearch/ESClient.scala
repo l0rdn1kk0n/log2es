@@ -1,5 +1,10 @@
 package de.agilecoders.logger.log2es.core.elasticsearch
 
+import java.io.OutputStream
+import java.nio.charset.StandardCharsets
+import java.util.zip.GZIPOutputStream
+
+import com.ning.http.client.Request.EntityWriter
 import de.agilecoders.logger.log2es.core.Configuration
 
 import scala.concurrent.{Future, promise}
@@ -40,6 +45,8 @@ trait ESClient {
 
   def send(indexName: String, typeName: String, events: Seq[String]): Future[Response]
 
+  def updateIndex(indexName: String, typeName: String, configuration: String): Future[Response]
+
   def status(): Future[String]
 
   def shutdown(): Unit
@@ -66,36 +73,44 @@ case class ESHttpClient(conf: Configuration) extends ESClient {
   import dispatch.Defaults._
   import dispatch._
 
-  private lazy val request = (url("http://localhost:9200") / conf.indexName)
-    .POST
-    //.setContentType("application/json", StandardCharsets.UTF_8.name())
-    .setHeader("User-Agent", conf.userAgent)
+  private lazy val hostname = host("localhost", 9200)
 
-  private def mapEvent(event: String): String = {
-    s"""{ "index" : { "_ttl" : "90d" } }""" + "\n" + event
+  private lazy val indexRequestBuilder = (hostname / conf.indexName).POST
+
+  def createIndex(indexName: String, content: String): scala.concurrent.Future[Response] = {
+    val r = (hostname / indexName).PUT.setBody(content)
+
+    execute(r)
   }
 
-  private def toBody(events: Seq[String]): String = events.map(mapEvent).mkString("\n")
-
   override def send(indexName: String, typeName: String, events: Seq[String]) = {
-    val f = promise[Response]()
-    val r = (request / conf.dynamicTypeName / "_bulk") setBody toBody(events)
+    val content = EventsBodyWriter(events, conf.gzip)
+    val request = indexRequestBuilder / typeName / "_bulk"
 
-    Http(r).onComplete({
+    execute(request setBody content)
+  }
+
+  override def updateIndex(indexName: String, typeName: String, configuration: String) = {
+    execute((hostname / indexName).POST.setBody(configuration))
+  }
+
+  override def status() = {
+    execute(hostname / "_cluster" / "health" GET) map (_.body)
+  }
+
+  private def execute(req: Req): scala.concurrent.Future[Response] = {
+    val f = promise[Response]()
+
+    Http(req
+      .setContentType("application/json", "UTF-8")
+      .setHeader("User-Agent", conf.userAgent)).onComplete({
       case Success(response) =>
-        println("BODY: " + response.getResponseBody)
         f.complete(Success(HttpResponse(response)))
       case Failure(e) =>
         f.failure(e)
     })
 
     f.future
-  }
-
-  override def status() = {
-    Http(host("localhost", 9200) / "_cluster" / "health" GET) map { value =>
-      value.getResponseBody
-    }
   }
 
   override def shutdown() = {
@@ -114,7 +129,12 @@ case class ESNoopClient(conf: Configuration) extends ESClient {
   override def status() = Future.successful("{\ncluster_name: \"elasticsearch_miha\",\nstatus: \"green\",\ntimed_out: false,\nnumber_of_nodes: 1,\nnumber_of_data_nodes: 1,\nactive_primary_shards: 0,\nactive_shards: 0,\nrelocating_shards: 0,\ninitializing_shards: 0,\nunassigned_shards: 0\n}")
 
   override def send(indexName: String, typeName: String, events: Seq[String]): Future[Response] = {
-    println(s"ESClient.send($indexName, $typeName, ${events.length}})")
+    println(s"ESClient.send($indexName, $typeName, ${events.length})")
+    Future.successful(StaticResponse(200))
+  }
+
+  override def updateIndex(indexName: String, typeName: String, mapping: String) = {
+    println(s"ESClient.putMapping($indexName, $typeName, $mapping)")
     Future.successful(StaticResponse(200))
   }
 
@@ -122,6 +142,19 @@ case class ESNoopClient(conf: Configuration) extends ESClient {
     println("ESClient.start")
   }
 
+}
+
+case class EventsBodyWriter(events: Seq[String], useGzip: Boolean = false) extends EntityWriter {
+  private val action = """{ "index" : { } }""" + "\n"
+
+  override def writeEntity(out: OutputStream): Unit = useGzip match {
+    case true =>
+      val gzip = new GZIPOutputStream(out)
+      events.map(action + _ + "\n").foreach(v => gzip.write(v.getBytes(StandardCharsets.UTF_8)))
+      gzip.finish()
+    case false =>
+      events.map(action + _ + "\n").foreach(v => out.write(v.getBytes(StandardCharsets.UTF_8)))
+  }
 }
 
 case class StaticResponse(statusCode: Int, body: String = "") extends Response

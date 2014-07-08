@@ -1,39 +1,53 @@
 package de.agilecoders.logger.log2es
 
+import java.util.concurrent.atomic.AtomicLong
+
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.spi.{ILoggingEvent, LoggingEvent, ThrowableProxy}
-import de.agilecoders.logger.log2es.logback.ElasticsearchAppender
+import org.slf4j.LoggerFactory
+
+import scala.util.Random
 
 /**
  * @author Michael Haitz <michael.haitz@agilecoders.de>
  */
 object Log2es extends App {
 
-  val stream = ElasticsearchAppender()
+  System.setProperty("logback.configurationFile", "log2es/logback.xml")
+  val logger = LoggerFactory.getLogger("test")
 
-  def run() {
-    var x = 0
-    while (x < 1009) {
-      x = x + 1
-      stream.append(Factory.newEvent(x))
+  execute()
+  System.exit(0)
 
-      x % 10000 match {
-        case 0 => Thread.sleep((Math.random() * 6000).asInstanceOf[Long])
-        case _ =>
+  def execute() {
+    val r = new Random()
+    val time = System.currentTimeMillis()
+
+    val c = new AtomicLong(0)
+
+    try {
+      while (System.currentTimeMillis() - time < 5000) {
+        (100 to (101 + r.nextInt(1000))).toStream.par.foreach(i => {
+          log(i)
+          c.incrementAndGet()
+        })
       }
+    } finally {
+      val duration = System.currentTimeMillis() - time
+      Console.println(s"count: ${c.get()}; time: ${duration}ms; msg/sec: ${c.get() / (duration / 1000)}")
     }
   }
 
-  stream.setClientType("http")
-  stream.setClusterName("elasticsearch_miha")
-  stream.start()
-  run()
-  println("finished round 1")
-  Thread.sleep(6000)
-  run()
-  println("finished round 2")
-  Thread.sleep(6000)
-  stream.stop()
+  def log(i: Int) = {
+    val number = scala.math.random * 1000
+
+    number match {
+      case n: Double if n < 200 => logger.error("message-" + i, new RuntimeException(new IllegalArgumentException("message")))
+      case n: Double if n >= 200 && n < 500 => logger.warn("message-{}", i)
+      case n: Double if n >= 500 && n < 900 => logger.info("message-" + i)
+      case n: Double if n >= 900 => logger.debug("message-" + i)
+    }
+  }
 }
 
 object Factory {

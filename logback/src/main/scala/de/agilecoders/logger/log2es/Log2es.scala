@@ -6,8 +6,8 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.spi.{ILoggingEvent, LoggingEvent, ThrowableProxy}
 import org.slf4j.LoggerFactory
 
-import scala.util.Random
 import scala.concurrent.duration._
+import scala.util.Random
 
 /**
  * @author Michael Haitz <michael.haitz@agilecoders.de>
@@ -33,9 +33,17 @@ object Log2es extends App {
           c.incrementAndGet()
         })
       }
+    } catch {
+      case t: Throwable => Console.err.println(t)
     } finally {
       val duration = System.currentTimeMillis() - time
-      Console.println(s"count: ${c.get()}; time: ${duration}ms; msg/sec: ${c.get() / (duration / 1000)}")
+      Console.println(s"count: ${c.get()}; time: ${duration}ms; msg/sec: ${
+        if (c.get() > 0) {
+          c.get() / (duration / 1000)
+        } else {
+          "0"
+        }
+      }")
     }
   }
 

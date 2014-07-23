@@ -15,8 +15,6 @@ case class LogbackEventMapper(conf: Configuration) extends EventMapper[ILoggingE
   /**
    * hook to register mapper functions
    *
-   * TODO miha: add only configured fields
-   *
    * @param registry the registry to register mappers at
    * @return given registry for chaining
    */

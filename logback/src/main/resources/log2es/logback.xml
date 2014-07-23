@@ -11,7 +11,7 @@
         <hostName>localhost</hostName>
         <serviceName>log2es-test</serviceName>
         <outgoingBulkSize>5000</outgoingBulkSize>
-        <flushQueueTime>1 seconds</flushQueueTime>
+        <flushQueueTime>3 seconds</flushQueueTime>
     </appender>
 
     <appender name="STDOUT"

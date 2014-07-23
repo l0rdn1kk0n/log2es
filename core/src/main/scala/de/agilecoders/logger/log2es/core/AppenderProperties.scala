@@ -37,11 +37,15 @@ trait AppenderProperties {
     typeName = getTypeName,
     indexName = getIndexName,
     hostName = getHostName,
+    typeNameUpdateInterval = Duration.apply(getTypeNameUpdateInterval),
     fields = Fields.parse(getFields)
   )
 
   @BeanProperty
   var name: String = defaults.name
+
+  @BeanProperty
+  var typeNameUpdateInterval: String = defaults.typeNameUpdateInterval.toString
 
   @BeanProperty
   var actorSystemName: String = defaults.actorSystemName

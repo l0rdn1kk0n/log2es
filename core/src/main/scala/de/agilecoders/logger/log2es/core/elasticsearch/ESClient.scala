@@ -7,7 +7,7 @@ import java.util.zip.GZIPOutputStream
 import com.ning.http.client.Request.EntityWriter
 import de.agilecoders.logger.log2es.core.Configuration
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{Future, promise}
 import scala.util.{Failure, Success}
 
 /**
@@ -99,7 +99,7 @@ case class ESHttpClient(conf: Configuration) extends ESClient {
   }
 
   private def execute(req: Req): scala.concurrent.Future[Response] = {
-    val f = Promise[Response]()
+    val f = promise[Response]()
 
     Http(req
       .setContentType("application/json", "UTF-8")
@@ -149,14 +149,11 @@ case class EventsBodyWriter(events: Seq[String], useGzip: Boolean = false) exten
 
   override def writeEntity(out: OutputStream): Unit = useGzip match {
     case true =>
-      writeTo(new GZIPOutputStream(out)).finish()
+      val gzip = new GZIPOutputStream(out)
+      events.map(action + _ + "\n").foreach(v => gzip.write(v.getBytes(StandardCharsets.UTF_8)))
+      gzip.finish()
     case false =>
-      writeTo(out)
-  }
-
-  private def writeTo[T <: OutputStream](out: T): T = {
-    events.map(action + _ + "\n").foreach(v => out.write(v.getBytes(StandardCharsets.UTF_8)))
-    out
+      events.map(action + _ + "\n").foreach(v => out.write(v.getBytes(StandardCharsets.UTF_8)))
   }
 }
 

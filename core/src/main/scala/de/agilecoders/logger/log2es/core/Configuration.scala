@@ -6,7 +6,6 @@ import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.util.Timeout
-import de.agilecoders.logger.log2es.core.common.RuntimeExceptionWithoutStack
 import de.agilecoders.logger.log2es.core.mapper.Fields
 
 import scala.collection.mutable.ArrayBuffer
@@ -17,8 +16,6 @@ import scala.io.Source
  * @author Michael Haitz <michael.haitz@agilecoders.de>
  */
 object Configuration {
-
-  lazy val defaults = Configuration()
 
   /**
    * TODO miha
@@ -54,7 +51,6 @@ object Configuration {
             source.close()
           }
         }
-      case _ => throw new RuntimeExceptionWithoutStack(s"can't find resource: $file")
     }
   }
 
@@ -83,12 +79,12 @@ case class Configuration(defaultTimeout: Timeout = Timeout(3.seconds),
                          clusterName: String = "elasticsearch",
                          fields: Seq[String] = Seq(Fields.MESSAGE, Fields.STACKTRACE, Fields.THREAD, Fields.TIMESTAMP, Fields.LOGGER, Fields.LEVEL),
                          flushQueueTime: Duration = 5.seconds,
-                         actorSystemName: String = "log2es",
-                         typeNameUpdateInterval: Duration = Duration.Zero) {
+                         actorSystemName: String = "log2es") {
 
   private lazy val listener = ArrayBuffer[String => Unit]()
 
   def onTypeNameChanged(f: String => Unit) = listener += f
+
 
   private lazy val dynamicTypeNameHolder = new AtomicReference[String](typeName)
   private lazy val pattern = typeName.replaceFirst(".*%\\{([^\\}]*)\\}.*", "$1")

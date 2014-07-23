@@ -13,8 +13,8 @@ import scala.concurrent.duration.Duration
  *
  * @author Michael Haitz <michael.haitz@agilecoders.de>
  */
-trait AppenderProperties extends NameAware {
-  private val defaults = Configuration.defaults
+trait AppenderProperties {
+  private val defaults = Configuration()
 
   /**
    * @return all appender properties as immutable configuration class
@@ -37,12 +37,11 @@ trait AppenderProperties extends NameAware {
     typeName = getTypeName,
     indexName = getIndexName,
     hostName = getHostName,
-    typeNameUpdateInterval = Duration.apply(getTypeNameUpdateInterval),
     fields = Fields.parse(getFields)
   )
 
   @BeanProperty
-  var typeNameUpdateInterval: String = defaults.typeNameUpdateInterval.toString
+  var name: String = defaults.name
 
   @BeanProperty
   var actorSystemName: String = defaults.actorSystemName
@@ -98,8 +97,4 @@ trait AppenderProperties extends NameAware {
   @BeanProperty
   var outgoingBulkSize: Int = defaults.outgoingBulkSize
 
-}
-
-trait NameAware {
-  def getName: String
 }

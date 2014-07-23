@@ -6,8 +6,8 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.spi.{ILoggingEvent, LoggingEvent, ThrowableProxy}
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.duration._
 import scala.util.Random
+import scala.concurrent.duration._
 
 /**
  * @author Michael Haitz <michael.haitz@agilecoders.de>
@@ -27,23 +27,15 @@ object Log2es extends App {
     val c = new AtomicLong(0)
 
     try {
-      while (System.currentTimeMillis() - time < 10.seconds.toMillis) {
+      while (System.currentTimeMillis() - time < 2.minutes.toMillis) {
         (100 to (101 + r.nextInt(1000))).toStream.par.foreach(i => {
           log(i)
           c.incrementAndGet()
         })
       }
-    } catch {
-      case t: Throwable => Console.err.println(t)
     } finally {
       val duration = System.currentTimeMillis() - time
-      Console.println(s"count: ${c.get()}; time: ${duration}ms; msg/sec: ${
-        if (c.get() > 0) {
-          c.get() / (duration / 1000)
-        } else {
-          "0"
-        }
-      }")
+      Console.println(s"count: ${c.get()}; time: ${duration}ms; msg/sec: ${c.get() / (duration / 1000)}")
     }
   }
 

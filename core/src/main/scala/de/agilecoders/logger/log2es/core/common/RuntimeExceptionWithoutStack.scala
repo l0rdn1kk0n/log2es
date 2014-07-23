@@ -5,7 +5,7 @@ import java.io.{PrintStream, PrintWriter}
 /**
  * special lightweight runtime exception that doesn't contain a stacktrace.
  *
- * @author Michael Haitz <michael.haitz@agilecoders.de>
+ * @author miha
  */
 class RuntimeExceptionWithoutStack(private val message: String,
                                    private val cause: Throwable) extends RuntimeException(message, cause, true, false) {

@@ -52,12 +52,6 @@ case class LogEventStream[T](conf: Configuration = Configuration(), mapper: Even
     Await.result(response, conf.defaultTimeout.duration)
   })
 
-  /**
-   * adds a given event to the [[EventFlow]] queue
-   *
-   * @param event the event to enqueue
-   * @return whether the event was queued or not
-   */
   def enqueue(event: T): Boolean = queue.offer(event, conf.defaultTimeout.duration.toSeconds, TimeUnit.SECONDS)
 
   private def send(events: Seq[String]): Unit = {
@@ -75,9 +69,6 @@ case class LogEventStream[T](conf: Configuration = Configuration(), mapper: Even
     })
   }
 
-  /**
-   * shutdown [[EventFlow]] and [[ESClient]]. Blocks until all requests are finished
-   */
   def shutdown() = {
     flow.shutdown()
 

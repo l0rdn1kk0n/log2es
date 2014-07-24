@@ -10,22 +10,24 @@ CAUTION: there's no stable release version available yet, so please don't use it
 
 ### Installation
 
-You've to add the maven dependency first (please add only one of the following):
+You've to add the maven dependency first (please add only one of the following, depending on your logger implementation):
+
+log2es is available for scala 2.10 and 2.11.
 
 ```xml
 <dependency>
     <groupId>de.agilecoders.logback</groupId>
-    <artifactId>log2es-logback</artifactId>
+    <artifactId>log2es-logback_2.10</artifactId>
     <version>0.2.1</version>
 </dependency>
 <dependency>
     <groupId>de.agilecoders.logback</groupId>
-    <artifactId>log2es-log4j</artifactId>
+    <artifactId>log2es-log4j_2.10</artifactId>
     <version>0.2.1</version>
 </dependency>
 <dependency>
     <groupId>de.agilecoders.logback</groupId>
-    <artifactId>log2es-log4j2</artifactId>
+    <artifactId>log2es-log4j2_2.10</artifactId>
     <version>0.2.1</version>
 </dependency>
 ```
@@ -33,7 +35,7 @@ You've to add the maven dependency first (please add only one of the following):
 How to configure logback:
 
 ```xml
-<appender name="log2es" class="de.agilecoders.elasticsearch.logger.logback.ActorBasedElasticSearchLogbackAppender">
+<appender name="log2es" class="de.agilecoders.logger.log2es.logback.ElasticsearchAppender">
 </appender>
 ```
 
@@ -44,55 +46,81 @@ How to configure log4j:
 log4j.rootLogger=DEBUG, ES
 
 # ES is set to be a ActorBasedElasticSearchLog4jAppender.
-log4j.appender.ES=de.agilecoders.elasticsearch.logger.log4j.ActorBasedElasticSearchLog4jAppender
+log4j.appender.ES=de.agilecoders.logger.log2es.log4j.ElasticsearchAppender
 ```
 
 How to configure log4j2:
 
 ```xml
  <Appenders>
-    <!-- Async Loggers will auto-flush in batches, so switch off immediateFlush. -->
-    <ActorBasedElasticSearchLog4j2Appender name="log2es">
-    </ActorBasedElasticSearchLog4j2Appender>
+    <ElasticsearchAppender name="log2es">
+    </ElasticsearchAppender>
   </Appenders>
 ```
 
 ### Configuration
 
-It is possible to configure all parameters of log2es via `src/main/resources/log2es.conf`.
+It is possible to configure all parameters of log2es via `logback.xml`.
 
+```xml
+<appender name="log2es" class="de.agilecoders.logger.log2es.logback.ElasticsearchAppender">
+    <fields>MESSAGE, THREAD, LEVEL,ARGUMENTS, LOGGER, MARKER,MDC, TIMESTAMP, STACKTRACE,CALLER, SERVICE, HOSTNAME
+    </fields>
+    <host>http://localhost:9200</host>
+    <clientType>http</clientType>
+    <gzip>true</gzip>
+    <hostName>localhost</hostName>
+    <serviceName>log2es-test</serviceName>
+    <outgoingBulkSize>5000</outgoingBulkSize>
+    <flushQueueTime>1 seconds</flushQueueTime>
+</appender>
 ```
-log2es {
-    configuration {
-        # all available elasticsearch hosts (mandatory)
-        hosts = ["http://localhost:9200"]
 
-        # defines how many retries will be tried till message will be dropped (optional)
-        retryCount = 3
+Authors
+-------
 
-        # defines the internal queue size for elasticsearch bulk operations to reduce
-        # number of http calls (optional)
-        queueSize = 100
+[![Ohloh profile for Michael Haitz](https://www.ohloh.net/accounts/235496/widgets/account_detailed.gif)](https://www.ohloh.net/accounts/235496?ref=Detailed)
 
-        # the elasticsearch mapping type name (optional)
-        typeName = logline
 
-        # the elasticsearch mapping index name (optional)
-        indexName = log
+Bug tracker
+-----------
 
-        # whether to initialize mapping or not (optional)
-        initializeMapping = true
+Have a bug? Please create an issue here on GitHub!
 
-        # Events of this level are deemed to be discardable. (optional)
-        # e.g. if set to INFO then TRACE, DEBUG and INFO are discardable
-        discardable = INFO
+https://github.com/l0rdn1kk0n/log2es/issues
 
-        # defines all fields that will be sent to elasticsearch (optional)
-        fields = ["date", "level", "logger", "thread", "message", "stacktrace"]
 
-        # transformer class to transform logging events to json   (optional)
-        transformer = "de.agilecoders.logback.elasticsearch.DefaultLoggingEventToMapTransformer"
-    }
+Versioning
+----------
 
-}
-```
+Wicket-Bootstrap will be maintained under the Semantic Versioning guidelines as much as possible.
+
+Releases will be numbered with the follow format:
+
+`<major>.<minor>.<patch>`
+
+And constructed with the following guidelines:
+
+* Breaking backward compatibility bumps the major
+* New additions without breaking backward compatibility bumps the minor
+* Bug fixes and misc changes bump the patch
+
+For more information on SemVer, please visit http://semver.org/.
+
+
+Copyright and license
+---------------------
+
+Copyright 2012 AgileCoders.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this work except in compliance with the License.
+You may obtain a copy of the License in the LICENSE file, or at:
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.

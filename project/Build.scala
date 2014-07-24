@@ -5,7 +5,7 @@ import sbtrelease.ReleasePlugin._
 object BuildSettings {
   val customBuildSettings = Seq(
     organization := "de.agilecoders.logger",
-    version := "0.1.2",
+    version := "0.2.1",
     scalaVersion := "2.11.1",
     crossScalaVersions := Seq("2.10.4", "2.11.1"),
     javacOptions ++= Seq("-source", jdkVersion, "-target", jdkVersion),

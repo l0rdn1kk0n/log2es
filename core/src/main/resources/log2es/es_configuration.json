@@ -1,0 +1,88 @@
+{
+    "settings": {
+        "number_of_shards": 5,
+        "number_of_replicas": 1,
+        "replication": "async",
+        "index": {
+            "mapping.allow_type_wrapper": true
+        }
+    },
+
+    "mappings": {
+        "%{typeName}": {
+            "_source": {
+                "enabled": true
+            },
+            "_timestamp": {
+                "enabled": true,
+                "path": "timestamp"
+            },
+            "_ttl": {
+                "enabled": true,
+                "default": "%{ttl}"
+            },
+
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string",
+                    "index": "not_analyzed",
+                    "include_in_all": false
+                },
+                "hostname": {
+                    "type": "string",
+                    "index": "not_analyzed",
+                    "include_in_all": false
+                },
+                "service": {
+                    "type": "string",
+                    "index": "not_analyzed",
+                    "include_in_all": false
+                },
+                "logger": {
+                    "type": "string",
+                    "index": "not_analyzed",
+                    "include_in_all": false
+                },
+                "timestamp": {
+                    "type": "long",
+                    "include_in_all": false
+                },
+                "date": {
+                    "type": "date",
+                    "format": "date_time",
+                    "include_in_all": false
+                },
+                "thread": {
+                    "type": "string",
+                    "index": "not_analyzed",
+                    "include_in_all": false
+                },
+                "mdc": {
+                    "type": "object",
+                    "include_in_all": false
+                },
+                "arguments": {
+                    "type": "object",
+                    "enabled": false,
+                    "include_in_all": false
+                },
+                "caller": {
+                    "type": "object",
+                    "enabled": false,
+                    "include_in_all": false
+                },
+                "stacktrace": {
+                    "type": "string"
+                },
+                "marker": {
+                    "type": "string",
+                    "index": "not_analyzed",
+                    "include_in_all": false
+                }
+            }
+        }
+    }
+}

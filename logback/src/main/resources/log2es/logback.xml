@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration debug="true">
+
+    <appender name="ElasticsearchAppender" class="de.agilecoders.logger.log2es.logback.ElasticsearchAppender">
+        <fields>MESSAGE, THREAD, LEVEL,ARGUMENTS, LOGGER, MARKER,MDC, TIMESTAMP, STACKTRACE,CALLER, SERVICE, HOSTNAME
+        </fields>
+        <host>http://localhost:9200</host>
+        <clientType>http</clientType>
+        <typeName>logline_%{yyyy-MM-dd-hh-mm}</typeName>
+        <gzip>true</gzip>
+        <hostName>localhost</hostName>
+        <serviceName>log2es-test</serviceName>
+        <outgoingBulkSize>5000</outgoingBulkSize>
+        <flushQueueTime>3 seconds</flushQueueTime>
+    </appender>
+
+    <appender name="STDOUT"
+              class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>
+                %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
+            </pattern>
+        </encoder>
+    </appender>
+
+    <logger name="com.ning.http" level="WARN"/>
+    <logger name="wabisabi" level="WARN"/>
+    <logger name="de.agilecoders" level="DEBUG"/>
+
+    <root level="DEBUG">
+        <appender-ref ref="ElasticsearchAppender"/>
+        <!--<appender-ref ref="STDOUT"/>     -->
+    </root>
+</configuration>

@@ -18,8 +18,14 @@ abstract class AppenderBase(_name: String, filter: Filter, layout: Layout[_ <: S
     case _ => // don't log anything as long as appender isn't started
   }
 
-  override def setStopped(): Unit = {
-    super.setStopped()
+  override def start() {
+    super.start()
+
+    logEventStream.start()
+  }
+
+  override def stop() {
+    super.stop()
 
     logEventStream.shutdown()
   }

@@ -1,7 +1,5 @@
 package de.agilecoders.logger.log2es.core
 
-import java.util
-
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.stream.scaladsl.Flow
 import akka.stream.{FlowMaterializer, MaterializerSettings}
@@ -17,7 +15,7 @@ import scala.util.Success
  * @param conf log2es configuration
  * @author Michael Haitz <michael.haitz@agilecoders.de>
  */
-case class EventFlow[T](conf: Configuration, queue: util.Queue[T], mapper: EventMapper[T], send: Seq[String] => Unit) {
+case class EventFlow[T](conf: Configuration, queue: ProcessingQueue[T], mapper: EventMapper[T], send: Seq[String] => Unit) {
 
   import de.agilecoders.logger.log2es.core.common.Implicits.durationToFiniteDuration
 

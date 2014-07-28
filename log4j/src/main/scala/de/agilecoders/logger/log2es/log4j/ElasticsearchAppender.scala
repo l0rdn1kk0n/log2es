@@ -13,6 +13,10 @@ case class ElasticsearchAppender() extends AppenderSkeleton with AppenderPropert
   private lazy val logEventStream = LogEventStream(conf, Log4jEventMapper(conf))
 
   override def append(event: LoggingEvent): Unit = {
+    if (!logEventStream.isRunning) {
+      logEventStream.start()
+    }
+
     if (conf.isMDCEnabled) {
       event.getMDCCopy()
     }
@@ -26,4 +30,5 @@ case class ElasticsearchAppender() extends AppenderSkeleton with AppenderPropert
   override def requiresLayout(): Boolean = false
 
   override def close(): Unit = logEventStream.shutdown()
+
 }

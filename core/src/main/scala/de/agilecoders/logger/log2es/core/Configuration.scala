@@ -14,9 +14,13 @@ import scala.concurrent.duration._
 import scala.io.Source
 
 /**
+ * log2es configuration class
+ *
  * @author Michael Haitz <michael.haitz@agilecoders.de>
  */
 object Configuration {
+
+  lazy val defaults: Configuration = Configuration()
 
   /**
    * TODO miha
@@ -59,7 +63,7 @@ object Configuration {
 }
 
 /**
- * log2es configuration
+ * log2es configuration instance
  *
  * @author Michael Haitz <michael.haitz@agilecoders.de>
  */
@@ -84,16 +88,40 @@ case class Configuration(defaultTimeout: Timeout = Timeout(3.seconds),
                          actorSystemName: String = "log2es",
                          typeNameUpdateInterval: Duration = Duration.Zero) {
 
-  private lazy val listener = ArrayBuffer[String => Unit]()
-
-  def onTypeNameChanged(f: String => Unit) = listener += f
-
+  private lazy val listener = new ArrayBuffer[String => Unit](5)
   private lazy val dynamicTypeNameHolder = new AtomicReference[String](typeName)
   private lazy val pattern = typeName.replaceFirst(".*%\\{([^\\}]*)\\}.*", "$1")
 
-  def updateTypeName(): Unit = if (typeName.contains("%") && pattern.length > 0) {
+  /**
+   * register a onTypeNameChanged listener
+   *
+   * @param f the listener to register
+   * @return listener itself
+   */
+  def onTypeNameChanged(f: String => Unit): String => Unit = {
+    listener += f
+    f
+  }
+
+  /**
+   * removes a onTypeNameChanged listener
+   *
+   * @param f the listener to remove
+   * @return this instance for chaining
+   */
+  def removeListener(f: String => Unit): this.type = {
+    listener -= f
+    this
+  }
+
+  /**
+   * updates the type name if type name is dynamic (contains date pattern)
+   *
+   * @return this instance for chaining
+   */
+  def updateTypeName(): this.type = if (typeName.contains("%") && pattern.length > 0) {
     val dateFormat = new SimpleDateFormat(pattern)
-    val current = dynamicTypeNameHolder.get()
+    val current = dynamicTypeName
     val newValue = typeName.replace("%{" + pattern + "}", dateFormat.format(new Date()))
 
     if (current != newValue) {
@@ -101,17 +129,21 @@ case class Configuration(defaultTimeout: Timeout = Timeout(3.seconds),
 
       dynamicTypeNameHolder.compareAndSet(current, newValue)
     }
+
+    this
+  } else {
+    this
   }
 
-  def isMessageEnabled = fields.contains("message")
+  lazy val isMessageEnabled = fields.contains("message")
 
-  def isStacktraceEnabled = fields.contains("stacktrace")
+  lazy val isStacktraceEnabled = fields.contains("stacktrace")
 
-  def isThreadEnabled = fields.contains("thread")
+  lazy val isThreadEnabled = fields.contains("thread")
 
-  def isMDCEnabled = fields.contains("mdc")
+  lazy val isMDCEnabled = fields.contains("mdc")
 
-  def isTimestampEnabled = fields.contains("timestamp")
+  lazy val isTimestampEnabled = fields.contains("timestamp")
 
   def dynamicTypeName = dynamicTypeNameHolder.get()
 

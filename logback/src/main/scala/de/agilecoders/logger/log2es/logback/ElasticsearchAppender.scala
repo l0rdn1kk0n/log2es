@@ -6,7 +6,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.Appender
 import ch.qos.logback.core.filter.Filter
 import ch.qos.logback.core.spi.{ContextAwareBase, FilterAttachableImpl, FilterReply}
-import de.agilecoders.logger.log2es.core.{AppenderProperties, LogEventStream}
+import de.agilecoders.logger.log2es.core.{AppenderProperties, Configuration, LogEventStream}
 
 /**
  * elasticsearch asynchronous and remote logback appender
@@ -19,6 +19,12 @@ case class ElasticsearchAppender() extends ContextAwareBase with Appender[ILoggi
   private lazy val conf = toConfiguration
   private lazy val logEventStream = LogEventStream(conf, LogbackEventMapper(conf))
 
+  private var name = Configuration.defaults.name
+
+  override def setName(name: String): Unit = this.name = name
+
+  override def getName: String = name
+
   /**
    * @return true if this appender was started
    */
@@ -29,6 +35,8 @@ case class ElasticsearchAppender() extends ContextAwareBase with Appender[ILoggi
    */
   override def start() = if (!isStarted) {
     started.set(true)
+
+    logEventStream.start()
   }
 
   /**

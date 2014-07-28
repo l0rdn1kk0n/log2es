@@ -16,18 +16,13 @@ log2es is available for scala 2.10 and 2.11.
 
 ```xml
 <dependency>
-    <groupId>de.agilecoders.logback</groupId>
-    <artifactId>log2es-logback_2.10</artifactId>
+    <groupId>de.agilecoders.logger</groupId>
+    <artifactId>log2es-logback_2.11</artifactId>
     <version>0.2.1</version>
 </dependency>
 <dependency>
-    <groupId>de.agilecoders.logback</groupId>
-    <artifactId>log2es-log4j_2.10</artifactId>
-    <version>0.2.1</version>
-</dependency>
-<dependency>
-    <groupId>de.agilecoders.logback</groupId>
-    <artifactId>log2es-log4j2_2.10</artifactId>
+    <groupId>de.agilecoders.logger</groupId>
+    <artifactId>log2es-log4j_2.11</artifactId>
     <version>0.2.1</version>
 </dependency>
 ```
@@ -93,7 +88,7 @@ https://github.com/l0rdn1kk0n/log2es/issues
 Versioning
 ----------
 
-Wicket-Bootstrap will be maintained under the Semantic Versioning guidelines as much as possible.
+log2es will be maintained under the Semantic Versioning guidelines as much as possible.
 
 Releases will be numbered with the follow format:
 

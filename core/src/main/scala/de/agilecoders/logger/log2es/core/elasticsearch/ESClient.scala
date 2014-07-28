@@ -1,14 +1,9 @@
 package de.agilecoders.logger.log2es.core.elasticsearch
 
-import java.io.OutputStream
-import java.nio.charset.StandardCharsets
-import java.util.zip.GZIPOutputStream
-
-import com.ning.http.client.Request.EntityWriter
 import de.agilecoders.logger.log2es.core.Configuration
+import de.agilecoders.logger.log2es.core.elasticsearch.impl.{ESHttpClient, ESNoopClient}
 
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success}
+import scala.concurrent.Future
 
 /**
  * elasticsearch client factory
@@ -35,7 +30,6 @@ object ESClient {
 
 }
 
-
 /**
  * elasticsearch client interface
  *
@@ -43,127 +37,44 @@ object ESClient {
  */
 trait ESClient {
 
+  /**
+   * sends a bunch of events to elasticsearch
+   *
+   * @param indexName the index name to use
+   * @param typeName the type name where this events should stored to
+   * @param events the events to store
+   * @return a future response
+   */
   def send(indexName: String, typeName: String, events: Seq[String]): Future[Response]
 
+  /**
+   * updates/creates index and mapping
+   *
+   * @param indexName the index name to use
+   * @param typeName the type name to update
+   * @param configuration the configuration to write
+   * @return a future response
+   */
   def updateIndex(indexName: String, typeName: String, configuration: String): Future[Response]
 
+  /**
+   * @return elasticsearch cluster status
+   */
   def status(): Future[String]
 
+  /**
+   * shutdown of elasticsearch client
+   */
   def shutdown(): Unit
 
+  /**
+   * starts the elasticsearch client
+   */
   def start(): Unit
 }
 
-/**
- * response abstraction
- *
- * @author Michael Haitz <michael.haitz@agilecoders.de>
- */
-trait Response {
-
-  def statusCode: Int
-
-  def body: String
-
-}
 
 
-case class ESHttpClient(conf: Configuration) extends ESClient {
 
-  import dispatch.Defaults._
-  import dispatch._
 
-  private lazy val hostname = host("localhost", 9200)
 
-  private lazy val indexRequestBuilder = (hostname / conf.indexName).POST
-
-  def createIndex(indexName: String, content: String): scala.concurrent.Future[Response] = {
-    val r = (hostname / indexName).PUT.setBody(content)
-
-    execute(r)
-  }
-
-  override def send(indexName: String, typeName: String, events: Seq[String]) = {
-    val content = EventsBodyWriter(events, conf.gzip)
-    val request = indexRequestBuilder / typeName / "_bulk"
-
-    execute(request setBody content)
-  }
-
-  override def updateIndex(indexName: String, typeName: String, configuration: String) = {
-    execute((hostname / indexName).POST.setBody(configuration))
-  }
-
-  override def status() = {
-    execute(hostname / "_cluster" / "health" GET) map (_.body)
-  }
-
-  private def execute(req: Req): scala.concurrent.Future[Response] = {
-    val f = Promise[Response]()
-
-    Http(req
-      .setContentType("application/json", "UTF-8")
-      .setHeader("User-Agent", conf.userAgent)).onComplete({
-      case Success(response) =>
-        f.complete(Success(HttpResponse(response)))
-      case Failure(e) =>
-        f.failure(e)
-    })
-
-    f.future
-  }
-
-  override def shutdown() = {
-    Http.shutdown()
-  }
-
-  override def start() = {}
-}
-
-case class ESNoopClient(conf: Configuration) extends ESClient {
-
-  override def shutdown(): Unit = {
-    println("ESClient.shutdown")
-  }
-
-  override def status() = Future.successful("{\ncluster_name: \"elasticsearch_miha\",\nstatus: \"green\",\ntimed_out: false,\nnumber_of_nodes: 1,\nnumber_of_data_nodes: 1,\nactive_primary_shards: 0,\nactive_shards: 0,\nrelocating_shards: 0,\ninitializing_shards: 0,\nunassigned_shards: 0\n}")
-
-  override def send(indexName: String, typeName: String, events: Seq[String]): Future[Response] = {
-    println(s"ESClient.send($indexName, $typeName, ${events.length})")
-    Future.successful(StaticResponse(200))
-  }
-
-  override def updateIndex(indexName: String, typeName: String, mapping: String) = {
-    println(s"ESClient.putMapping($indexName, $typeName, $mapping)")
-    Future.successful(StaticResponse(200))
-  }
-
-  override def start(): Unit = {
-    println("ESClient.start")
-  }
-
-}
-
-case class EventsBodyWriter(events: Seq[String], useGzip: Boolean = false) extends EntityWriter {
-  private val action = """{ "index" : { } }""" + "\n"
-
-  override def writeEntity(out: OutputStream): Unit = useGzip match {
-    case true =>
-      writeTo(new GZIPOutputStream(out)).finish()
-    case false =>
-      writeTo(out)
-  }
-
-  private def writeTo[T <: OutputStream](out: T): T = {
-    events.map(action + _ + "\n").foreach(v => out.write(v.getBytes(StandardCharsets.UTF_8)))
-    out
-  }
-}
-
-case class StaticResponse(statusCode: Int, body: String = "") extends Response
-
-case class HttpResponse(private val response: com.ning.http.client.Response) extends Response {
-  override def statusCode: Int = response.getStatusCode
-
-  override def body: String = response.getResponseBody
-}

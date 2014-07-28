@@ -7,7 +7,7 @@
         <host>http://localhost:9200</host>
         <clientType>http</clientType>
         <typeName>logline_%{yyyy-MM-dd-hh-mm}</typeName>
-        <gzip>true</gzip>
+        <gzip>false</gzip>
         <hostName>localhost</hostName>
         <serviceName>log2es-test</serviceName>
         <outgoingBulkSize>5000</outgoingBulkSize>

@@ -27,7 +27,7 @@ object Log2es extends App {
     val c = new AtomicLong(0)
 
     try {
-      while (System.currentTimeMillis() - time < 2.minutes.toMillis) {
+      while (System.currentTimeMillis() - time < 10.seconds.toMillis) {
         (100 to (101 + r.nextInt(1000))).toStream.par.foreach(i => {
           log(i)
           c.incrementAndGet()

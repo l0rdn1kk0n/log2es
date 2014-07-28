@@ -60,7 +60,7 @@ case class LogbackEventMapper(conf: Configuration) extends EventMapper[ILoggingE
   }
 
   private def stacktrace(event: ILoggingEvent): Any = event.getThrowableProxy match {
-    case proxy: ThrowableProxy => ThrowableProxyUtil.asString(proxy)
+    case proxy: ThrowableProxy => ThrowableProxyUtil.asString(proxy).replaceAll("\n", "\\n").replaceAll("\t", "\\t").replaceAll("\r", "\\r")
     case _ => nothing
   }
 }

@@ -4,11 +4,12 @@
     <appender name="ElasticsearchAppender" class="de.agilecoders.logger.log2es.logback.ElasticsearchAppender">
         <fields>MESSAGE, THREAD, LEVEL,ARGUMENTS, LOGGER, MARKER,MDC, TIMESTAMP, STACKTRACE,CALLER, SERVICE, HOSTNAME
         </fields>
-        <host>http://localhost:9200</host>
-        <clientType>http</clientType>
+        <host>localhost:9300</host>
+        <clientType>native</clientType>
         <typeName>logline_%{yyyy-MM-dd-hh-mm}</typeName>
         <gzip>false</gzip>
         <hostName>localhost</hostName>
+        <clusterName>elasticsearch_miha</clusterName>
         <serviceName>log2es-test</serviceName>
         <outgoingBulkSize>5000</outgoingBulkSize>
         <flushQueueTime>3 seconds</flushQueueTime>

@@ -113,7 +113,7 @@ case class LogEventStream[T](conf: Configuration = Configuration(), mapper: Even
         })
 
         // block until mapping was created
-        Await.result(response, conf.defaultTimeout.duration)
+        Await.result(response, conf.defaultTimeout.duration * 2)
       case false => // nothing to do, mapping up2date
     }
 

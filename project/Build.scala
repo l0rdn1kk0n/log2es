@@ -70,8 +70,10 @@ object Dependencies {
   val log4j2 = "org.apache.logging.log4j" % "log4j-core" % Version.log4j2 withSources()
   val log4j2Api = "org.apache.logging.log4j" % "log4j-api" % Version.log4j2 withSources()
   val log4j = "log4j" % "log4j" % Version.log4j withSources()
+  val elasticsearch = "org.elasticsearch" % "elasticsearch" % Version.elasticsearch withSources()
+
   val testDependencies = Seq(akkaTestKit, junit, scalaTest)
-  val coreDependencies = Seq(akkaActor, akkaSlf4j, akkaStreeam, dispatch, asyncHttpClient, json4s)
+  val coreDependencies = Seq(akkaActor, akkaSlf4j, akkaStreeam, dispatch, asyncHttpClient, json4s, elasticsearch)
   val logbackDependencies = Seq(logback, json4s)
   val log4j2Dependencies = Seq(log4j2, log4j2Api, json4s)
   val log4jDependencies = Seq(log4j, json4s)
@@ -87,6 +89,7 @@ object Dependencies {
     val asyncHttpClient = "1.7.4"
     val log4j2 = "2.0"
     val log4j = "1.2.17"
+    val elasticsearch = "1.2.1"
   }
 
 }

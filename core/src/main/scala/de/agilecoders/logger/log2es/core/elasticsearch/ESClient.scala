@@ -1,7 +1,7 @@
 package de.agilecoders.logger.log2es.core.elasticsearch
 
 import de.agilecoders.logger.log2es.core.Configuration
-import de.agilecoders.logger.log2es.core.elasticsearch.impl.{ESHttpClient, ESNoopClient}
+import de.agilecoders.logger.log2es.core.elasticsearch.impl.{ESHttpClient, ESNativeClient, ESNoopClient}
 
 import scala.concurrent.Future
 
@@ -23,7 +23,7 @@ object ESClient {
 
     case "http" => new ESHttpClient(conf)
 
-    case "native" => new ESNoopClient(conf)
+    case "native" => new ESNativeClient(conf)
 
     case clientType => throw new IllegalArgumentException(s"there's no such elasticsearch client: $clientType")
   }

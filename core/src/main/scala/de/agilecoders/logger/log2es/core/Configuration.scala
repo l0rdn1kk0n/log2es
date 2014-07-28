@@ -88,6 +88,20 @@ case class Configuration(defaultTimeout: Timeout = Timeout(3.seconds),
                          actorSystemName: String = "log2es",
                          typeNameUpdateInterval: Duration = Duration.Zero) {
 
+  lazy val hostNameWithoutPort: String = host.replaceAll("https?://", "") match {
+    case h: String => h.indexOf(":") match {
+      case i: Int if i > -1 => h.substring(0, i)
+      case _ => host
+    }
+    case _ => host
+  }
+
+
+  lazy val port: Int = host.lastIndexOf(":") match {
+    case i: Int if i > -1 => Integer.parseInt(host.substring(i + 1))
+    case _ => 9300
+  }
+
   private lazy val listener = new ArrayBuffer[String => Unit](5)
   private lazy val dynamicTypeNameHolder = new AtomicReference[String](typeName)
   private lazy val pattern = typeName.replaceFirst(".*%\\{([^\\}]*)\\}.*", "$1")
